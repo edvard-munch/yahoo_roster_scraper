@@ -1,6 +1,4 @@
-# Initially made for a Jupyter notebook, hence all this manipulations with
-# dataframes
-# Probable could just write a list directly into xlsx
+# Initially made for a Jupyter notebook, hence all this manipulations with # dataframes, Probable could just write a list directly into xlsx
 
 # Rewrite for using in BS only, scratch all of the direct parcer operations
 
