@@ -10,6 +10,7 @@ import re
 import sys
 import subprocess
 
+import proxies_scraper
 
 # BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com'
 
@@ -272,41 +273,38 @@ def get_proxy(ip_addresses):
 
     if ip_addresses:
         proxy_index = random.randint(0, len(ip_addresses) - 1)
-        return (
-            ip_addresses[proxy_index],
-            {"http": ip_addresses[proxy_index], "https": ip_addresses[proxy_index]}
-        )
+        return ip_addresses[proxy_index]
+
     else:
         print('No free proxies available. Refresh proxies list and try again!')
         sys.exit(1)
 
 
-def get_response(link, *ip_addresses):
-    # proxy = get_proxy(ip_addresses[0])
-    # print(f'Trying with ip: {proxy[0]}')
-    proxy = ''
+def get_response(link, ip_addresses):
+    proxy = get_proxy(ip_addresses)
+    print(f"Trying with IP: {proxy['http']}")
 
     if proxy:
         try:
             web = requests.get(link, params=AVG_STATS_PAGE,
-                               proxies=proxy[1], timeout=7)
+                               proxies=proxy, timeout=7)
             print(web.url)
             return web
 
         except (requests.ConnectTimeout, OSError) as e:
-            # print(e)
             print('Connnection Error. Retry')
-            ip_addresses[0].remove(proxy[0])
-            print(f'Proxies left: {len(ip_addresses[0])}')
+            ip_addresses.remove(proxy)
+            print(f'Proxies left: {len(ip_addresses)}')
     else:
         web = requests.get(link, params=AVG_STATS_PAGE)
-        print(web.url)
         return web
 
 
 def process_links(links, ip_addresses):
     counter = 0
     fnh = False
+
+    proxy = get_proxy(ip_addresses)
 
     for index, link in enumerate(links):
         if FNH_LEAGUE_CODE in link:
@@ -369,22 +367,6 @@ def get_links(link):
     return team_links
 
 
-def get_proxies():
-    url = 'https://free-proxy-list.net/'
-    response = requests.get(url)
-    parser = lh.fromstring(response.text)
-    proxies = []
-
-    for i in parser.xpath('//tbody/tr')[:300]:
-        # check if this ip supports https
-        if i.xpath('.//td[7][contains(text(),"yes")]'):
-            proxy = ":".join([i.xpath('.//td[1]/text()')[0], i.xpath('.//td[2]/text()')[0]])
-            proxies.append(proxy)
-
-    return proxies
-
-
-# You need to make a league publicly viewable to being able to scrape data
 if __name__ == '__main__':
     # web = get_response(SCHEDULE_URL)
     # soup = bs(web.content, 'html.parser')
@@ -409,9 +391,8 @@ if __name__ == '__main__':
 
     for link in links:
         print(link)
+    proxies = proxies_scraper.get_proxies()
 
-    # proxies = get_proxies()
-    proxies = []
     print(proxies)
 
     filename = get_filename()
