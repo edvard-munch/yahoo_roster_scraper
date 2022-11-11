@@ -1,3 +1,4 @@
+import random
 import requests
 from bs4 import BeautifulSoup
 
@@ -10,7 +11,7 @@ PROTOCOLS = ['http', 'https']
 TAGS = ['tr', 'td']
 
 
-def get_proxies():
+def scrape_proxies():
 
     response = requests.get(URL)
     soup = BeautifulSoup(response.content, PARSER)
@@ -23,3 +24,14 @@ def get_proxies():
             proxies.append({PROTOCOLS[0]: proxy, PROTOCOLS[1]: proxy})
 
     return proxies
+
+
+def get_proxy(proxies):
+
+    if proxies:
+        proxy_index = random.randint(0, len(proxies) - 1)
+        return proxies[proxy_index]
+
+    else:
+        print('No free proxies available. Refresh proxies list and try again!')
+        sys.exit(1)

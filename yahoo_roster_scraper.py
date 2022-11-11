@@ -5,7 +5,6 @@ import requests
 from bs4 import BeautifulSoup as bs
 import time
 import os
-import random
 import re
 import sys
 import subprocess
@@ -47,6 +46,8 @@ FILE_OPENERS = {
 NOT_PLAYING = ['IR', 'IR+', 'NA']
 PRESEASON = 1
 SEASON = 2
+
+REQUEST_TIMEOUT = 7
 
 if SEASON_IN_PROGRESS:
     START_FROM = 1
@@ -269,50 +270,40 @@ def open_file(filename):
 #         text_file.write('\n\n\n')
 
 
-def get_proxy(ip_addresses):
-
-    if ip_addresses:
-        proxy_index = random.randint(0, len(ip_addresses) - 1)
-        return ip_addresses[proxy_index]
-
-    else:
-        print('No free proxies available. Refresh proxies list and try again!')
-        sys.exit(1)
-
-
-def get_response(link, ip_addresses):
-    proxy = get_proxy(ip_addresses)
+def get_response(link, proxy, proxies):
     print(f"Trying with IP: {proxy['http']}")
 
     if proxy:
         try:
             web = requests.get(link, params=AVG_STATS_PAGE,
-                               proxies=proxy, timeout=7)
+                               proxies=proxy, timeout=REQUEST_TIMEOUT)
             print(web.url)
             return web
 
         except (requests.ConnectTimeout, OSError) as e:
             print('Connnection Error. Retry')
-            ip_addresses.remove(proxy)
-            print(f'Proxies left: {len(ip_addresses)}')
+            proxies.remove(proxy)
+            print(f'Proxies left: {len(proxies)}')
     else:
         web = requests.get(link, params=AVG_STATS_PAGE)
         return web
 
 
-def process_links(links, ip_addresses):
+def process_links(links, proxies):
     counter = 0
     fnh = False
 
-    proxy = get_proxy(ip_addresses)
+    proxy = proxies_scraper.get_proxy(proxies)
 
     for index, link in enumerate(links):
         if FNH_LEAGUE_CODE in link:
             fnh = True
 
-        web = get_response(link, ip_addresses)
+        web = get_response(link, proxy, proxies)
+
         while not web:
-            web = get_response(link, ip_addresses)
+            proxy = proxies_scraper.get_proxy(proxies)
+            web = get_response(link, proxy, proxies)
 
         if index == 0:
             file_mode = 'w'
@@ -392,6 +383,7 @@ if __name__ == '__main__':
     for link in links:
         print(link)
     proxies = proxies_scraper.get_proxies()
+    proxies = proxies_scraper.scrape_proxies()
 
     print(proxies)
 
