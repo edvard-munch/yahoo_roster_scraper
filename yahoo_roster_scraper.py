@@ -1,5 +1,3 @@
-import pandas as pd
-import lxml.html as lh
 from lxml import etree
 import requests
 from bs4 import BeautifulSoup as bs
@@ -8,10 +6,13 @@ import os
 import re
 import sys
 import subprocess
+import xlsxwriter
 
 import proxies_scraper
 
 # BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com'
+PARSER = 'lxml'
+EMPTY_CELL = '-'
 
 SEASON_IN_PROGRESS = True
 SEASON_JUST_STARTED = False
@@ -56,6 +57,12 @@ else:
     START_FROM = 1
     NAME_COLUMN = 0
 
+START_HEADERS = {
+    'Spot': [], 'Forwards/Defensemen': [], 'Team': [], 'Pos': []
+}
+
+SCORING_COLUMNS = ['G', 'A', '+/-', 'PIM', 'PPP', 'SHP', 'SOG', 'FW', 'HIT', 'BLK']
+
 COLUMNS_TO_DELETE = ['Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current',
                      '% Started']
 
@@ -63,188 +70,20 @@ COLUMNS_TO_DELETE = ['Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current',
 SCHEDULE_URL = 'https://leftwinglock.com/schedules'
 
 
-def find_tr_elements(web):
-    doc = lh.fromstring(web.content)
-    return doc.xpath('//tr')[START_FROM:]
+def scrape_from_page(soup, element_type, attr_type, attr_name):
+    return soup.find_all(element_type, {attr_type: attr_name})
 
 
-# all find instead of find_all
-def scrape_from_page(web, element_type, attr_type, attr_name):
-    return bs(web.text, 'lxml').find_all(element_type, {attr_type: attr_name})
-
-
-def get_team_name(web):
+def get_team_name(soup):
     attr_name = 'Navtarget Py-sm Pstart-lg F-reset Wordwrap-bw No-case'
-    name_link = scrape_from_page(web, 'a', 'class', attr_name)[0]
+    name_link = scrape_from_page(soup, 'a', 'class', attr_name)[0]
     return name_link.text.split('  ')[0]
-
-
-def get_clean_names(table):
-    clean_names = []
-
-    for link in table.findAll(attrs={"class": "Nowrap name F-link"}):
-        clean_names.append(link.string)
-
-    return clean_names
-
-
-def get_clean_teams_and_positions(table):
-    clean_teams = []
-    clean_positions = []
-    spans = table.findAll(attrs={"class": "Fz-xxs"})
-    for index, span in enumerate(spans):
-
-        try:
-            team, position = span.string.split(' - ')
-        except (AttributeError, ValueError):
-            continue
-
-        clean_teams.append(team)
-        clean_positions.append(position)
-
-    return (clean_teams, clean_positions)
-
-
-def get_headers(web):
-    tr_headers = find_tr_elements(web)[0]
-
-    headers = []
-
-    for header in tr_headers:
-        name = header.text_content()
-
-        if not name:
-            pass
-        else:
-            headers.append((name, []))
-
-        if SEASON_IN_PROGRESS and name == 'Opp':
-            headers.append(("Add", []))
-
-    return headers
-
-
-def get_full_table(web, *skaters_table):
-    table = get_headers(web)
-    tr_rows = find_tr_elements(web)[1:]
-    clean_names = get_clean_names(skaters_table[0])
-    clean_teams, clean_positions = get_clean_teams_and_positions(skaters_table[0])
-
-    goalies = {}
-    skaters = {}
-    dict_to_add = skaters
-
-    for row_index, row in enumerate(tr_rows):
-
-        slot_is_empty = False
-        # row = tr_rows[row_index]    # WHAAAT?
-
-        # for txt rosters
-        row_content = str(etree.tostring(row, pretty_print=True))
-
-        if 'Goaltenders' in row_content:
-            dict_to_add = goalies
-
-        for a in row.iter('a'):
-            if a.get('class') == 'Nowrap name F-link':
-                name_ = a.text
-
-        for td in row.iter('td'):
-            if td.get('class') == "Alt Ta-end Nowrap Bdrend":
-                started_percent = td.find('div').text
-                dict_to_add[name_] = started_percent
-
-        try:
-            name = clean_names[row_index]
-
-            for cell_index, cell in enumerate(row.iterchildren()):
-                data = cell.text_content()
-
-                if table[cell_index][0] == 'Forwards/Defensemen':
-                    if 'Empty' in data:
-                        slot_is_empty = True
-                        clean_names.insert(row_index, '-')
-                        clean_teams.insert(row_index, '-')
-                        clean_positions.insert(row_index, '-')
-                        table[cell_index][1].append('(Empty)')
-
-                    else:
-                        table[cell_index][1].append(name)
-
-                else:
-                    if slot_is_empty:
-                        table[cell_index][1].append('-')
-                    else:
-                        table[cell_index][1].append(data)
-
-        # check why break didn't work
-        except IndexError:
-            pass
-
-    sorted_names = (
-        sorted(goalies, key=lambda x: float(goalies[x][:-1]), reverse=True),
-        sorted(skaters, key=lambda x: float(skaters[x][:-1]), reverse=True)
-    )
-
-    table.insert(3, ('Team', clean_teams))
-    table.insert(4, ('Position', clean_positions))
-
-    # print(sorted_names)
-    return table, sorted_names
-
-
-def get_dataframe_from_list(web, skaters_table):
-    players_dict = {title: column for (title, column) in get_full_table(web, skaters_table)[0]}
-    
-    # DEBUGGING
-    # for key, value in players_dict.items():
-    #     print(f'Length of {key}: {len(value)}')
-
-    return pd.DataFrame(players_dict)
-
-
-def delete_columns(players_df):
-    del_columns = COLUMNS_TO_DELETE
-
-    if not SEASON_IN_PROGRESS:
-        del_columns.remove('Add')
-
-    if 'TOI/G*' in players_df.columns:
-        del_columns.append('TOI/G*')
-
-    if 'GP*' in players_df.columns:
-        del_columns.append('GP*')
-
-    players_df.drop(del_columns, axis=1, inplace=True)
-
-    if SEASON_IN_PROGRESS:
-        for index, player in players_df.iterrows():
-            if player['Spot'] in NOT_PLAYING:
-                players_df.drop([index], inplace=True)
-
-    return players_df
-
-
-def add_total_row(players_df, fnh):
-    cols = ['G', 'A', '+/-', 'PIM', 'PPP', 'SHP', 'SOG', 'FW', 'HIT', 'BLK']
-
-    if fnh:
-        cols.insert(5, 'GWG')
-
-    players_df[cols] = players_df[cols].apply(pd.to_numeric, errors='coerce',
-                                              axis=1)
-    players_df.loc["Total"] = players_df.select_dtypes(exclude=['object']).sum()
 
 
 def get_filename():
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     filename = f"reports/stats_list_{timestamp}.xlsx"
     return filename
-
-
-def add_to_sheet(writer, players_df, sheet_name):
-    players_df.to_excel(writer, sheet_name=sheet_name, index=False)
-    writer.sheets[sheet_name].set_column(NAME_COLUMN, NAME_COLUMN, 23)
 
 
 def open_file(filename):
@@ -259,6 +98,131 @@ def open_file(filename):
         subprocess.call([opener, filename])
 
 
+def verify_sheet_name(team_name):
+    return re.sub(INVALID_EXCEL_CHARACTERS_PATTERN, '', team_name)
+
+
+def get_links(link):
+    web = requests.get(link)
+    soup = bs(web.text, PARSER)
+    team_links = []
+    matchs = scrape_from_page(soup, 'div', 'class', 'Grid-table Phone-px-med')
+
+    for match in matchs:
+        teams = match.find_all('div', {'class': 'Fz-sm Phone-fz-xs Ell Mawpx-150'})
+
+        for team in teams:
+            html_link = team.find('a')
+            base_team_url = html_link.get('href')
+            team_links.append(base_team_url)
+
+    return team_links
+
+
+def get_headers(soup):
+    header_row = soup.find('tr', class_='Alt Last')
+    headers = {**START_HEADERS, **{}}
+
+    start_adding = False
+
+    for child in header_row.children:
+        name = child.string
+
+        if SEASON_IN_PROGRESS:
+            headers['Add'] = []
+
+        if name == 'Action':
+            start_adding = True
+
+        if start_adding:
+            headers[name] = []
+
+    return headers
+
+
+def get_full_table(soup, headers):
+    rows = soup.find('tbody').find_all('tr')
+    cell_values = []
+
+    for i, row in enumerate(rows):
+        empty = row.find(class_='Nowrap emptyplayer Inlineblock')
+        index = 0
+        for cell in row:
+            if i == 0:
+                cell_values.append([])
+
+            if ('player' in cell.attrs['class']):
+                if i == 0:
+                    cell_values.extend(([],[]))
+
+                player_link = cell.find(class_ = 'Nowrap name F-link')
+                if player_link:
+                    name = player_link.string
+                    span = cell.find(class_ = "Fz-xxs")
+                    team, position = span.string.split(' - ')
+
+                    cell_values[index].append(name)
+                    cell_values[index+1].append(team)
+                    cell_values[index+2].append(position)
+                    index += 3
+                else:
+                    cell_values[index].append(EMPTY_CELL)
+                    cell_values[index+1].append(EMPTY_CELL)
+                    cell_values[index+2].append(EMPTY_CELL)
+                    index += 3    
+
+            else:
+                if (index > 0) and empty:
+                    cell_values[index].append(EMPTY_CELL)
+
+                else:  
+                    cell_values[index].append(cell.string)
+
+                index += 1        
+
+    # map_ list_ of lists to dict_ of lists
+    ind = 0
+    for key in headers.copy().keys():
+        headers[key] = cell_values[ind]
+def get_filename():
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    filename = f"reports/stats_list_{timestamp}.xlsx"
+    return filename
+
+        if key in SCORING_COLUMNS:
+            # hacky line for computing totals of avg stats
+            headers[key].append(sum([float(val.replace(EMPTY_CELL, '0')) for val in headers[key]]))
+
+        if key in COLUMNS_TO_DELETE:
+            headers.pop(key, None)
+        
+        ind += 1
+
+    # add_totals(headers, False)
+
+    return headers
+def open_file(filename):
+    if sys.platform == PLATFORMS['Windows']:
+        os.startfile(filename)
+    else:
+        if sys.platform == PLATFORMS['Mac_OS']:
+            opener = FILE_OPENERS['Mac_OS']
+        else:
+            opener = FILE_OPENERS['Linux']
+
+def write_to_xlsx(table):
+    team_name = get_team_name(soup)
+    sheet_name = verify_sheet_name(team_name)
+    worksheet = workbook.add_worksheet(name=sheet_name)
+        subprocess.call([opener, filename])
+
+    print(f'{sheet_name} written!')
+
+    col_num = 0
+    for key, value in table.items():
+        worksheet.write(0, col_num, key)
+        worksheet.write_column(1, col_num, value)
+        col_num += 1
 # def get_rosters_in_txt(names, file_mode, team_name):
 #     print(names)
 #     with open("reports/clean_rosters.txt", file_mode) as text_file:
@@ -288,6 +252,8 @@ def get_response(link, proxy, proxies):
         web = requests.get(link, params=AVG_STATS_PAGE)
         return web
 
+    filename = get_filename()
+    workbook = xlsxwriter.Workbook(filename)
 
 def process_links(links, proxies):
     counter = 0
@@ -313,14 +279,9 @@ def process_links(links, proxies):
         skaters_table = scrape_from_page(web, 'div', 'id', 'statTable0-wrap')[0]
         # goalies_table = scrape_from_page(web, 'div', 'id', 'statTable1-wrap')
 
-        players_df = get_dataframe_from_list(web, skaters_table)
+        write_to_xlsx(table)
 
-        if SEASON_IN_PROGRESS:
-            players_df.rename(columns={'Pos': 'Spot'}, inplace=True)
 
-        delete_columns(players_df)
-        add_total_row(players_df, fnh)
-        players_df = players_df.fillna('')
 
         team_name = get_team_name(web)
         # get_rosters_in_txt(get_full_table(web, skaters_table)[1], file_mode,
@@ -388,10 +349,8 @@ if __name__ == '__main__':
     print(proxies)
 
     filename = get_filename()
-    writer = pd.ExcelWriter(filename, engine='xlsxwriter')
     process_links(links, proxies)
 
-    writer.save()
 
     open_file(filename)
     # open_file("reports/clean_rosters.txt")
