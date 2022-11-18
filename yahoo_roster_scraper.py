@@ -93,7 +93,7 @@ START_HEADERS = {
     'Spot': [], 'Forwards/Defensemen': [], 'Team': [], 'Pos': []
 }
 
-SCORING_COLUMNS = ['G', 'A', '+/-', 'PIM', 'PPP', 'SHP', 'SOG', 'FW', 'HIT', 'BLK']
+SCORING_COLUMNS = ['G', 'A', '+/-', 'PIM', 'PPP', 'SHP', 'SOG', 'FW', 'HIT', 'BLK', 'GWG']
 
 COLUMNS_TO_DELETE = ['Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current',
                      '% Started']
