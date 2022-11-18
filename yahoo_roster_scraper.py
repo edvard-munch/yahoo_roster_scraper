@@ -220,25 +220,19 @@ def get_body(soup):
 
     return cell_values
 
-    # map_ list_ of lists to dict_ of lists
-    ind = 0
-    for key in headers.copy().keys():
-        headers[key] = cell_values[ind]
-def get_filename():
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
-    filename = f"reports/stats_list_{timestamp}.xlsx"
-    return filename
 
-        if key in SCORING_COLUMNS:
-            # hacky line for computing totals of avg stats
-            headers[key].append(sum([float(val.replace(EMPTY_CELL, '0')) for val in headers[key]]))
+def map_headers_to_body(headers, body):
+    headers_keys = headers.copy().keys()
+
+    for index, key in enumerate(headers_keys):
+        headers[key] = body[index]
+
+        if (SEASON_IN_PROGRESS) and (key in SCORING_COLUMNS):
+            # hacky line for computing totals of avg scoring stats
+            headers[key].append(sum([string_to_num(value, None) for value in headers[key]]))
 
         if key in COLUMNS_TO_DELETE:
             headers.pop(key, None)
-        
-        ind += 1
-
-    # add_totals(headers, False)
 
     return headers
 
