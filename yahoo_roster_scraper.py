@@ -1,11 +1,10 @@
-from lxml import etree
 import requests
 import bs4
-import time
 import os
 import re
 import sys
 import subprocess
+import time
 import xlsxwriter
 
 import proxies_scraper
