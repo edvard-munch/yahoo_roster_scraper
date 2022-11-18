@@ -1,6 +1,6 @@
 from lxml import etree
 import requests
-from bs4 import BeautifulSoup as bs
+import bs4
 import time
 import os
 import re
@@ -104,7 +104,7 @@ def verify_sheet_name(team_name):
 
 def get_links(link):
     web = requests.get(link)
-    soup = bs(web.text, PARSER)
+    soup = bs4.BeautifulSoup(web.text, PARSER)
     team_links = []
     matchs = scrape_from_page(soup, 'div', 'class', 'Grid-table Phone-px-med')
 
@@ -276,6 +276,7 @@ def process_links(links, proxies):
         else:
             file_mode = 'a'
 
+        soup = bs4.BeautifulSoup(web.text, PARSER)
         skaters_table = scrape_from_page(web, 'div', 'id', 'statTable0-wrap')[0]
         # goalies_table = scrape_from_page(web, 'div', 'id', 'statTable1-wrap')
 

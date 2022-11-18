@@ -1,6 +1,6 @@
 import random
 import requests
-from bs4 import BeautifulSoup
+import bs4
 
 
 URL = 'https://free-proxy-list.net/'
@@ -14,7 +14,7 @@ TAGS = ['tr', 'td']
 def scrape_proxies():
 
     response = requests.get(URL)
-    soup = BeautifulSoup(response.content, PARSER)
+    soup = bs4.BeautifulSoup(response.content, PARSER)
     proxies = []
     rows = soup.find(class_=PROXIES_TABLE_CLASS).find_all(TAGS[0])
 
