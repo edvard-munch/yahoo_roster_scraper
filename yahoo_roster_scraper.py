@@ -60,8 +60,6 @@ RESEARCH_STATS_PAGE = {
 if SEASON_JUST_STARTED:
     AVG_STATS_PAGE['stat2'] = 'AS_2021'
 
-FNH_LEAGUE_CODE = '9197'
-
 INVALID_EXCEL_CHARACTERS_PATTERN = r"[*\\\/]"
 
 OPPONENTS_PAGE = {
@@ -83,7 +81,6 @@ PRESEASON = 1
 SEASON = 2
 
 ROSTERED_COLUMN_INDEX = 7
-REQUEST_TIMEOUT = 7
 
 if SEASON_IN_PROGRESS:
     START_FROM = 1
@@ -110,14 +107,13 @@ def scrape_from_page(soup, element_type, attr_type, attr_name):
 
 
 def get_team_name(soup):
-    attr_name = 'Navtarget Py-sm Pstart-lg F-reset Wordwrap-bw No-case'
-    name_link = scrape_from_page(soup, 'a', 'class', attr_name)[0]
+    name_link = scrape_from_page(soup, 'a', 'class', TEAM_NAME_CLASSES)[0]
     return name_link.text.split('  ')[0]
 
 
 def get_filename():
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
-    filename = f"reports/stats_list_{timestamp}.xlsx"
+    timestamp = time.strftime(TIMESTAMP_FORMAT)
+    filename = XLSX_FILENAME_TEMPLATE.format(timestamp)
     return filename
 
 
@@ -141,10 +137,10 @@ def get_links(link):
     web = requests.get(link)
     soup = bs4.BeautifulSoup(web.text, PARSER)
     team_links = []
-    matchs = scrape_from_page(soup, 'div', 'class', 'Grid-table Phone-px-med')
+    matchups = scrape_from_page(soup, 'div', 'class', MATCHUPS_CLASSES)
 
-    for match in matchs:
-        teams = match.find_all('div', {'class': 'Fz-sm Phone-fz-xs Ell Mawpx-150'})
+    for match in matchups:
+        teams = match.find_all('div', {'class': TEAMS_IN_MATCHUP_CLASSES})
 
         for team in teams:
             html_link = team.find('a')
@@ -155,7 +151,7 @@ def get_links(link):
 
 
 def get_headers(soup):
-    header_row = soup.find('tr', class_='Alt Last')
+    header_row = soup.find('tr', class_=HEADERS_CLASSES)
     headers = {**START_HEADERS, **{}}
 
     start_adding = False
@@ -175,25 +171,32 @@ def get_headers(soup):
     return headers
 
 
-def get_full_table(soup, headers):
+def get_body(soup):
     rows = soup.find('tbody').find_all('tr')
     cell_values = []
 
     for i, row in enumerate(rows):
-        empty = row.find(class_='Nowrap emptyplayer Inlineblock')
+        empty = row.find(class_=EMPTY_SPOT_CLASSES)
         index = 0
+
+        if SEASON_IN_PROGRESS:
+            spot = row.find(class_=SPOT_CLASS)
+
+            if spot.string in NOT_PLAYING:
+                continue
+
         for cell in row:
             if i == 0:
                 cell_values.append([])
 
-            if ('player' in cell.attrs['class']):
+            if (PLAYER_NAME_CLASS in cell.attrs['class']):
                 if i == 0:
                     cell_values.extend(([],[]))
 
-                player_link = cell.find(class_ = 'Nowrap name F-link')
+                player_link = cell.find(class_=PLAYER_LINK_CLASSES)
                 if player_link:
                     name = player_link.string
-                    span = cell.find(class_ = "Fz-xxs")
+                    span = cell.find(class_ = TEAM_AND_POSITION_SPAN_CLASS)
                     team, position = span.string.split(' - ')
 
                     cell_values[index].append(name)
@@ -207,13 +210,15 @@ def get_full_table(soup, headers):
                     index += 3    
 
             else:
-                if (index > 0) and empty:
-                    cell_values[index].append(EMPTY_CELL)
+                if empty and (index > 0):
+                   cell_values[index].append(EMPTY_CELL)
 
                 else:  
                     cell_values[index].append(cell.string)
 
-                index += 1        
+                index += 1
+
+    return cell_values
 
     # map_ list_ of lists to dict_ of lists
     ind = 0
