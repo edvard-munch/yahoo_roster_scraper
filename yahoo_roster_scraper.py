@@ -17,9 +17,22 @@ EMPTY_CELL = '-'
 SEASON_IN_PROGRESS = True
 SEASON_JUST_STARTED = False
 
+
+CHOICES = {'xlsx': '1', 'txt': '2'}
+
+CONNECTION_ERROR_MESSAGE = 'Connnection Error. Retry'
+PROXIE_CONNECTION_ATTEMPT_MESSAGE = 'Trying with IP: {}'
+PROXIES_LEFT_MESSAGE = 'Proxies left: {}'
+NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
+CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters:\n'
+INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
+
 AVG_STATS_PAGE = {
     'stat1': 'AS',
-    # 'ssort': 'D', needed for off-season????
+}
+
+RESEARCH_STATS_PAGE = {
+    'stat1': 'R',
 }
 
 # if stats are not representative enough yet, use stats from the last season
@@ -48,6 +61,7 @@ NOT_PLAYING = ['IR', 'IR+', 'NA']
 PRESEASON = 1
 SEASON = 2
 
+ROSTERED_COLUMN_INDEX = 7
 REQUEST_TIMEOUT = 7
 
 if SEASON_IN_PROGRESS:
@@ -201,22 +215,10 @@ def get_filename():
     # add_totals(headers, False)
 
     return headers
-def open_file(filename):
-    if sys.platform == PLATFORMS['Windows']:
-        os.startfile(filename)
-    else:
-        if sys.platform == PLATFORMS['Mac_OS']:
-            opener = FILE_OPENERS['Mac_OS']
-        else:
-            opener = FILE_OPENERS['Linux']
 
-def write_to_xlsx(table):
-    team_name = get_team_name(soup)
+def write_to_xlsx(table, team_name):
     sheet_name = verify_sheet_name(team_name)
     worksheet = workbook.add_worksheet(name=sheet_name)
-        subprocess.call([opener, filename])
-
-    print(f'{sheet_name} written!')
 
     col_num = 0
     for key, value in table.items():
@@ -225,78 +227,69 @@ def write_to_xlsx(table):
         col_num += 1
 
 
-def get_response(link, proxy, proxies):
-    print(f"Trying with IP: {proxy['http']}")
+def get_response(link, stats_page, **proxie_data):
+    if proxie_data:
+        print(PROXIE_CONNECTION_ATTEMPT_MESSAGE.format(proxie_data['proxy']['http']))
 
-    if proxy:
         try:
-            web = requests.get(link, params=AVG_STATS_PAGE,
-                               proxies=proxy, timeout=REQUEST_TIMEOUT)
-            print(web.url)
-            return web
+            web = requests.get(link, params=stats_page,
+                               proxies=proxie_data['proxy'], timeout=REQUEST_TIMEOUT)
 
         except (requests.ConnectTimeout, OSError) as e:
-            print('Connnection Error. Retry')
-            proxies.remove(proxy)
-            print(f'Proxies left: {len(proxies)}')
+            print(CONNECTION_ERROR_MESSAGE)
+            proxie_data['proxies'].remove(proxie_data['proxy'])
+            print(PROXIES_LEFT_MESSAGE.format(len(proxie_data["proxies"])))
+            return None
     else:
-        web = requests.get(link, params=AVG_STATS_PAGE)
-        return web
+        web = requests.get(link, params=stats_page)
 
-    filename = get_filename()
-    workbook = xlsxwriter.Workbook(filename)
+    return web
 
-def process_links(links, proxies):
-    counter = 0
-    fnh = False
 
-    proxy = proxies_scraper.get_proxy(proxies)
+def process_links(links, use_proxies, choice, stats_page):
+
+    if use_proxies:
+        proxies = proxies_scraper.scrape_proxies()
+        proxy = proxies_scraper.get_proxy(proxies)
 
     for index, link in enumerate(links):
-        if FNH_LEAGUE_CODE in link:
-            fnh = True
 
-        web = get_response(link, proxy, proxies)
+        if use_proxies:
+            web = get_response(link, stats_page,  proxies=proxies, proxy=proxy)
 
-        while not web:
-            proxy = proxies_scraper.get_proxy(proxies)
-            web = get_response(link, proxy, proxies)
+            while not web:
+                proxy = proxies_scraper.get_proxy(proxies)
+                web = get_response(link, stats_page, proxies=proxies, proxy=proxy)
 
-        if index == 0:
-            file_mode = 'w'
         else:
-            file_mode = 'a'
+            web = get_response(link, stats_page)
 
         soup = bs4.BeautifulSoup(web.text, PARSER)
-        skaters_table = scrape_from_page(web, 'div', 'id', 'statTable0-wrap')[0]
-        # goalies_table = scrape_from_page(web, 'div', 'id', 'statTable1-wrap')
 
-        write_to_xlsx(table)
+        team_name = get_team_name(soup)
 
+        if choice == CHOICES['xlsx']:
+            headers = get_headers(soup)
+            body = get_body(soup)
+            table = map_headers_to_body(headers, body)
+            write_to_xlsx(table, team_name)
 
+        elif choice == CHOICES['txt']:
+            bodies = soup.find_all('tbody')
+            parse_clean_names(bodies)
 
             if index == 0:
                 file_mode = 'w'
             else:
                 file_mode = 'a'
-        team_name = get_team_name(web)
-        # get_rosters_in_txt(get_full_table(web, skaters_table)[1], file_mode,
-        #                    team_name)
 
             write_roster_to_txt(parse_clean_names(bodies), file_mode, team_name)
-        sheet_name = verify_sheet_name(team_name)
-        print(sheet_name)
-        add_to_sheet(writer, players_df, sheet_name)
-        print('SHEET ADDED')
 
-        counter += 1
-        print(f'Teams added: {counter}')
+        print(NUMBER_OF_TEAMS_PROCESSED_MESSAGE.format(index+1, len(links)))
 
 
 def parse_clean_names(bodies):
     full_roster = []
-def verify_sheet_name(team_name):
-    return re.sub(INVALID_EXCEL_CHARACTERS_PATTERN, '', team_name)
 
     for body in bodies:
         rows = body.find_all('tr')
@@ -308,27 +301,15 @@ def verify_sheet_name(team_name):
                 if (PLAYER_NAME_CLASS in cell.attrs['class']):
                     player_link = cell.find(class_ = PLAYER_LINK_CLASSES)
                     txt.append([])
-def get_links(link):
-    web = requests.get(link)
-    team_links = []
-    matchs = scrape_from_page(web, 'div', 'class', 'Grid-table Phone-px-med')
 
                     if player_link:
                         name = player_link.string
                         txt[row_index].append(name)
                     else:
                         txt[row_index].append(EMPTY_SPOT_STRING)
-    counter = 0
-    for match in matchs:
-        teams = match.find_all('div', {'class': 'Fz-sm Phone-fz-xs Ell Mawpx-150'})
-        counter += 1
 
                 if cell_index == ROSTERED_COLUMN_INDEX:
                     txt[row_index].append(cell.string)
-        for team in teams:
-            html_link = team.find('a')
-            base_team_url = html_link.get('href')
-            team_links.append(base_team_url)
 
         # '25%' kind of strings converted to float and sorted
         res = sorted(txt, key=lambda x: string_to_num(x[1], '%'), reverse=True)
@@ -336,23 +317,8 @@ def get_links(link):
         full_roster.append(zipped[0])
 
     return full_roster
-    return team_links
 
 
-if __name__ == '__main__':
-    # web = get_response(SCHEDULE_URL)
-    # soup = bs(web.content, 'html.parser')
-    # # suffix = 0
-    # # while suffix < 3:
-    # # res = scrape_from_page(web, 'table', 'id', 'table_id')
-    # # print(type(res))
-    # new = soup.find_all('tr', class_="odd")
-    # # new = soup.find_all("tr", limit=2)
-    # print(new)
-    # return bs(web.text, 'lxml').find_all(element_type, {attr_type: attr_name})
-    # div class="article__rte"
-
-    league_link = 'https://hockey.fantasysports.yahoo.com/hockey/6479'
 def write_roster_to_txt(full_roster, file_mode, team_name):
     with open(TXT_FILENAME, file_mode) as text_file:
         text_file.write(TEAM_NAME_HEADER.format(team_name))
@@ -365,23 +331,33 @@ def write_roster_to_txt(full_roster, file_mode, team_name):
         text_file.write('\n')
 
 
-    links = [
-        'https://hockey.fantasysports.yahoo.com/hockey/6479/8',
-        # 'https://hockey.fantasysports.yahoo.com/hockey/6479/1',
-    ]
+def request_input():
+    choice = input(CHOICE_MESSAGE)
 
-    links = get_links(league_link)
-
-    for link in links:
-        print(link)
-    proxies = proxies_scraper.get_proxies()
-    proxies = proxies_scraper.scrape_proxies()
-
-    print(proxies)
-
-    filename = get_filename()
-    process_links(links, proxies)
+    if choice in CHOICES.values():
+        return choice
+    else:
+        print(INCORRECT_CHOICE_MESSAGE)
+        return None
 
 
-    open_file(filename)
-    # open_file("reports/clean_rosters.txt")
+if __name__ == '__main__':
+    links = get_links(LEAGUE_LINK)
+
+    choice = request_input()
+
+    while not choice:
+        choice = request_input()
+
+    if choice == CHOICES['xlsx']:
+        filename = get_filename()
+        workbook = xlsxwriter.Workbook(filename)
+
+        process_links(links, USE_PROXIES, choice, AVG_STATS_PAGE)
+
+        workbook.close()
+        open_file(filename)
+
+    elif choice == CHOICES['txt']:
+        process_links(links, USE_PROXIES, choice, RESEARCH_STATS_PAGE)
+        open_file(TXT_FILENAME)
