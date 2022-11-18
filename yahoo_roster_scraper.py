@@ -223,15 +223,6 @@ def write_to_xlsx(table):
         worksheet.write(0, col_num, key)
         worksheet.write_column(1, col_num, value)
         col_num += 1
-# def get_rosters_in_txt(names, file_mode, team_name):
-#     print(names)
-#     with open("reports/clean_rosters.txt", file_mode) as text_file:
-#         text_file.write(f'---------------{team_name}---------------')
-#         text_file.write('\n\n')
-#         text_file.write("\n".join(str(item) for item in names[1]))
-#         text_file.write('\n\n')
-#         text_file.write("\n".join(str(item) for item in names[0]))
-#         text_file.write('\n\n\n')
 
 
 def get_response(link, proxy, proxies):
@@ -284,10 +275,15 @@ def process_links(links, proxies):
 
 
 
+            if index == 0:
+                file_mode = 'w'
+            else:
+                file_mode = 'a'
         team_name = get_team_name(web)
         # get_rosters_in_txt(get_full_table(web, skaters_table)[1], file_mode,
         #                    team_name)
 
+            write_roster_to_txt(parse_clean_names(bodies), file_mode, team_name)
         sheet_name = verify_sheet_name(team_name)
         print(sheet_name)
         add_to_sheet(writer, players_df, sheet_name)
@@ -297,26 +293,49 @@ def process_links(links, proxies):
         print(f'Teams added: {counter}')
 
 
+def parse_clean_names(bodies):
+    full_roster = []
 def verify_sheet_name(team_name):
     return re.sub(INVALID_EXCEL_CHARACTERS_PATTERN, '', team_name)
 
+    for body in bodies:
+        rows = body.find_all('tr')
 
+        txt = []
 
+        for row_index, row in enumerate(rows):
+            for cell_index, cell in enumerate(row):
+                if (PLAYER_NAME_CLASS in cell.attrs['class']):
+                    player_link = cell.find(class_ = PLAYER_LINK_CLASSES)
+                    txt.append([])
 def get_links(link):
     web = requests.get(link)
     team_links = []
     matchs = scrape_from_page(web, 'div', 'class', 'Grid-table Phone-px-med')
 
+                    if player_link:
+                        name = player_link.string
+                        txt[row_index].append(name)
+                    else:
+                        txt[row_index].append(EMPTY_SPOT_STRING)
     counter = 0
     for match in matchs:
         teams = match.find_all('div', {'class': 'Fz-sm Phone-fz-xs Ell Mawpx-150'})
         counter += 1
 
+                if cell_index == ROSTERED_COLUMN_INDEX:
+                    txt[row_index].append(cell.string)
         for team in teams:
             html_link = team.find('a')
             base_team_url = html_link.get('href')
             team_links.append(base_team_url)
 
+        # '25%' kind of strings converted to float and sorted
+        res = sorted(txt, key=lambda x: string_to_num(x[1], '%'), reverse=True)
+        zipped = list(zip(*res))
+        full_roster.append(zipped[0])
+
+    return full_roster
     return team_links
 
 
@@ -334,6 +353,17 @@ if __name__ == '__main__':
     # div class="article__rte"
 
     league_link = 'https://hockey.fantasysports.yahoo.com/hockey/6479'
+def write_roster_to_txt(full_roster, file_mode, team_name):
+    with open(TXT_FILENAME, file_mode) as text_file:
+        text_file.write(TEAM_NAME_HEADER.format(team_name))
+        text_file.write('\n\n')
+
+        for roster in full_roster:
+            text_file.write("\n".join(str(item) for item in roster if item != EMPTY_SPOT_STRING))
+            text_file.write('\n\n')
+
+        text_file.write('\n')
+
 
     links = [
         'https://hockey.fantasysports.yahoo.com/hockey/6479/8',
