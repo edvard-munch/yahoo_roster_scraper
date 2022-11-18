@@ -9,13 +9,15 @@ import xlsxwriter
 
 import proxies_scraper
 
-# BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com'
-PARSER = 'lxml'
-EMPTY_CELL = '-'
 
+# check +- SUM calculations
+
+LEAGUE_LINK = 'https://hockey.fantasysports.yahoo.com/hockey/9197'
 SEASON_IN_PROGRESS = True
 SEASON_JUST_STARTED = False
 
+USE_PROXIES = True
+REQUEST_TIMEOUT = 1
 
 CHOICES = {'xlsx': '1', 'txt': '2'}
 
@@ -25,6 +27,26 @@ PROXIES_LEFT_MESSAGE = 'Proxies left: {}'
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
 CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters:\n'
 INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
+
+PARSER = 'lxml'
+EMPTY_CELL = '-'
+
+TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
+XLSX_FILENAME_TEMPLATE = 'reports/stats_list_{}.xlsx'
+TXT_FILENAME = 'reports/clean_rosters.txt'
+TEAM_NAME_HEADER = '--------------- {} ---------------'
+
+MATCHUPS_CLASSES = 'Grid-table Phone-px-med'
+TEAMS_IN_MATCHUP_CLASSES = 'Fz-sm Phone-fz-xs Ell Mawpx-150'
+HEADERS_CLASSES = 'Alt Last'
+TEAM_NAME_CLASSES = 'Navtarget Py-sm Pstart-lg F-reset Wordwrap-bw No-case'
+EMPTY_SPOT_CLASSES = 'Nowrap emptyplayer Inlineblock'
+SPOT_CLASS = 'pos-label'
+PLAYER_NAME_CLASS = 'player'
+PLAYER_LINK_CLASSES = 'Nowrap name F-link'
+TEAM_AND_POSITION_SPAN_CLASS = "Fz-xxs"
+
+EMPTY_SPOT_STRING = 'Empty'
 
 AVG_STATS_PAGE = {
     'stat1': 'AS',
