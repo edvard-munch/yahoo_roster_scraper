@@ -216,6 +216,11 @@ def get_filename():
 
     return headers
 
+
+def string_to_num(value, delimeter):
+    return float(value.split(delimeter)[0].replace(EMPTY_CELL, '0'))
+
+
 def write_to_xlsx(table, team_name):
     sheet_name = verify_sheet_name(team_name)
     worksheet = workbook.add_worksheet(name=sheet_name)
