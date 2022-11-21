@@ -61,6 +61,7 @@ if SEASON_JUST_STARTED:
     AVG_STATS_PAGE['stat2'] = 'AS_2021'
 
 INVALID_EXCEL_CHARACTERS_PATTERN = r"[*\\\/]"
+EMPTY_STRING_PATTERN = r'^-$'
 
 OPPONENTS_PAGE = {
     'stat1': 'O',
@@ -238,7 +239,7 @@ def map_headers_to_body(headers, body):
 
 
 def string_to_num(value, delimeter):
-    return float(value.split(delimeter)[0].replace(EMPTY_CELL, '0'))
+    return float(re.sub(EMPTY_STRING_PATTERN, '0', value.split(delimeter)[0]))
 
 
 def write_to_xlsx(table, team_name):
