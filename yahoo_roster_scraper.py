@@ -25,6 +25,7 @@ PROXIES_LEFT_MESSAGE = 'Proxies left: {}'
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
 FORMAT_CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters:\n'
 PROXIES_CHOICE_MESSAGE = 'Use proxies? Y/n:\n'
+INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
 INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
 LEAGUE_ID_INCORRECT_MESSAGE = 'League with this ID does not exist or not publicly viewable'
 
@@ -371,6 +372,12 @@ def validate_input(message, choices):
         print(INCORRECT_CHOICE_MESSAGE)
         return None
 
+def league_exist_and_scrapable():
+    league_id = input(INPUT_LEAGUE_ID_MESSAGE)
+    link = BASE_FANTASY_URL + league_id
+
+    return get_links(link)
+
 
 if __name__ == '__main__':
     use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
@@ -380,26 +387,24 @@ if __name__ == '__main__':
 
     use_proxies = PROXY_CHOICES[use_proxies_choice]
 
-    league_id = input("Input league's ID:\n")
+    team_links = league_exist_and_scrapable()
+    while not team_links:
+        team_links = league_exist_and_scrapable()
 
-    link = BASE_FANTASY_URL + league_id
-    links = get_links(link)
+    choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
 
-    if links:
+    while not choice:
         choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
 
-        while not choice:
-            choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
+    if choice == FORMAT_CHOICES['xlsx']:
+        filename = get_filename()
+        workbook = xlsxwriter.Workbook(filename)
 
-        if choice == FORMAT_CHOICES['xlsx']:
-            filename = get_filename()
-            workbook = xlsxwriter.Workbook(filename)
+        process_links(team_links, use_proxies, choice, AVG_STATS_PAGE)
 
-            process_links(links, use_proxies, choice, AVG_STATS_PAGE)
+        workbook.close()
+        open_file(filename)
 
-            workbook.close()
-            open_file(filename)
-
-        elif choice == FORMAT_CHOICES['txt']:
-            process_links(links, use_proxies, choice, RESEARCH_STATS_PAGE)
-            open_file(TXT_FILENAME)
+    elif choice == FORMAT_CHOICES['txt']:
+        process_links(team_links, use_proxies, choice, RESEARCH_STATS_PAGE)
+        open_file(TXT_FILENAME)
