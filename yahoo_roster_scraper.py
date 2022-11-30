@@ -10,9 +10,7 @@ import xlsxwriter
 import proxies_scraper
 
 
-# check +- SUM calculations
-
-LEAGUE_LINK = 'https://hockey.fantasysports.yahoo.com/hockey/9197'
+BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com/hockey/'
 SEASON_IN_PROGRESS = True
 SEASON_JUST_STARTED = False
 
@@ -27,6 +25,7 @@ PROXIES_LEFT_MESSAGE = 'Proxies left: {}'
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
 CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters:\n'
 INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
+LEAGUE_ID_INCORRECT_MESSAGE = 'League with this ID does not exist or not publicly viewable'
 
 PARSER = 'lxml'
 EMPTY_CELL = '-'
@@ -36,7 +35,7 @@ XLSX_FILENAME_TEMPLATE = 'reports/stats_list_{}.xlsx'
 TXT_FILENAME = 'reports/clean_rosters.txt'
 TEAM_NAME_HEADER = '--------------- {} ---------------'
 
-MATCHUPS_CLASSES = 'Grid-table Phone-px-med'
+MATCHUP_CLASSES = 'Grid-table Phone-px-med'
 TEAMS_IN_MATCHUP_CLASSES = 'Fz-sm Phone-fz-xs Ell Mawpx-150'
 HEADERS_CLASSES = 'Alt Last'
 TEAM_NAME_CLASSES = 'Navtarget Py-sm Pstart-lg F-reset Wordwrap-bw No-case'
@@ -137,18 +136,23 @@ def verify_sheet_name(team_name):
 def get_links(link):
     web = requests.get(link)
     soup = bs4.BeautifulSoup(web.text, PARSER)
-    team_links = []
-    matchups = scrape_from_page(soup, 'div', 'class', MATCHUPS_CLASSES)
+    matchups = scrape_from_page(soup, 'div', 'class', MATCHUP_CLASSES)
 
-    for match in matchups:
-        teams = match.find_all('div', {'class': TEAMS_IN_MATCHUP_CLASSES})
+    if matchups:
+        team_links = []
+        for match in matchups:
+            teams = match.find_all('div', {'class': TEAMS_IN_MATCHUP_CLASSES})
 
-        for team in teams:
-            html_link = team.find('a')
-            base_team_url = html_link.get('href')
-            team_links.append(base_team_url)
+            for team in teams:
+                html_link = team.find('a')
+                base_team_url = html_link.get('href')
+                team_links.append(base_team_url)
 
-    return team_links
+        return team_links
+
+    else:
+        print(LEAGUE_ID_INCORRECT_MESSAGE)
+        return None
 
 
 def get_headers(soup):
@@ -368,22 +372,25 @@ def request_input():
 
 
 if __name__ == '__main__':
-    links = get_links(LEAGUE_LINK)
+    league_id = input("Input league's ID:\n")
+    link = BASE_FANTASY_URL + league_id
+    links = get_links(link)
 
-    choice = request_input()
-
-    while not choice:
+    if links:
         choice = request_input()
 
-    if choice == CHOICES['xlsx']:
-        filename = get_filename()
-        workbook = xlsxwriter.Workbook(filename)
+        while not choice:
+            choice = request_input()
 
-        process_links(links, USE_PROXIES, choice, AVG_STATS_PAGE)
+        if choice == CHOICES['xlsx']:
+            filename = get_filename()
+            workbook = xlsxwriter.Workbook(filename)
 
-        workbook.close()
-        open_file(filename)
+            process_links(links, USE_PROXIES, choice, AVG_STATS_PAGE)
 
-    elif choice == CHOICES['txt']:
-        process_links(links, USE_PROXIES, choice, RESEARCH_STATS_PAGE)
-        open_file(TXT_FILENAME)
+            workbook.close()
+            open_file(filename)
+
+        elif choice == CHOICES['txt']:
+            process_links(links, USE_PROXIES, choice, RESEARCH_STATS_PAGE)
+            open_file(TXT_FILENAME)
