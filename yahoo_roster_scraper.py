@@ -17,13 +17,13 @@ SEASON_JUST_STARTED = False
 USE_PROXIES = True
 REQUEST_TIMEOUT = 1
 
-CHOICES = {'xlsx': '1', 'txt': '2'}
+FORMAT_CHOICES = {'xlsx': '1', 'txt': '2'}
 
 CONNECTION_ERROR_MESSAGE = 'Connnection Error. Retry'
 PROXIE_CONNECTION_ATTEMPT_MESSAGE = 'Trying with IP: {}'
 PROXIES_LEFT_MESSAGE = 'Proxies left: {}'
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
-CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters:\n'
+FORMAT_CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters:\n'
 INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
 LEAGUE_ID_INCORRECT_MESSAGE = 'League with this ID does not exist or not publicly viewable'
 
@@ -298,13 +298,13 @@ def process_links(links, use_proxies, choice, stats_page):
 
         team_name = get_team_name(soup)
 
-        if choice == CHOICES['xlsx']:
+        if choice == FORMAT_CHOICES['xlsx']:
             headers = get_headers(soup)
             body = get_body(soup)
             table = map_headers_to_body(headers, body)
             write_to_xlsx(table, team_name)
 
-        elif choice == CHOICES['txt']:
+        elif choice == FORMAT_CHOICES['txt']:
             bodies = soup.find_all('tbody')
             parse_clean_names(bodies)
 
@@ -361,10 +361,10 @@ def write_roster_to_txt(full_roster, file_mode, team_name):
         text_file.write('\n')
 
 
-def request_input():
-    choice = input(CHOICE_MESSAGE)
+def validate_input(message, choices):
+    choice = input(message)
 
-    if choice in CHOICES.values():
+    if choice in choices:
         return choice
     else:
         print(INCORRECT_CHOICE_MESSAGE)
@@ -377,12 +377,12 @@ if __name__ == '__main__':
     links = get_links(link)
 
     if links:
-        choice = request_input()
+        choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
 
         while not choice:
-            choice = request_input()
+            choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
 
-        if choice == CHOICES['xlsx']:
+        if choice == FORMAT_CHOICES['xlsx']:
             filename = get_filename()
             workbook = xlsxwriter.Workbook(filename)
 
@@ -391,6 +391,6 @@ if __name__ == '__main__':
             workbook.close()
             open_file(filename)
 
-        elif choice == CHOICES['txt']:
+        elif choice == FORMAT_CHOICES['txt']:
             process_links(links, USE_PROXIES, choice, RESEARCH_STATS_PAGE)
             open_file(TXT_FILENAME)
