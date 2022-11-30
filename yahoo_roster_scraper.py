@@ -14,9 +14,9 @@ BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com/hockey/'
 SEASON_IN_PROGRESS = True
 SEASON_JUST_STARTED = False
 
-USE_PROXIES = True
 REQUEST_TIMEOUT = 1
 
+PROXY_CHOICES = {'Y': True, 'n': False}
 FORMAT_CHOICES = {'xlsx': '1', 'txt': '2'}
 
 CONNECTION_ERROR_MESSAGE = 'Connnection Error. Retry'
@@ -24,6 +24,7 @@ PROXIE_CONNECTION_ATTEMPT_MESSAGE = 'Trying with IP: {}'
 PROXIES_LEFT_MESSAGE = 'Proxies left: {}'
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
 FORMAT_CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters:\n'
+PROXIES_CHOICE_MESSAGE = 'Use proxies? Y/n:\n'
 INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
 LEAGUE_ID_INCORRECT_MESSAGE = 'League with this ID does not exist or not publicly viewable'
 
@@ -372,7 +373,15 @@ def validate_input(message, choices):
 
 
 if __name__ == '__main__':
+    use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
+
+    while not use_proxies_choice:
+        use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
+
+    use_proxies = PROXY_CHOICES[use_proxies_choice]
+
     league_id = input("Input league's ID:\n")
+
     link = BASE_FANTASY_URL + league_id
     links = get_links(link)
 
@@ -386,11 +395,11 @@ if __name__ == '__main__':
             filename = get_filename()
             workbook = xlsxwriter.Workbook(filename)
 
-            process_links(links, USE_PROXIES, choice, AVG_STATS_PAGE)
+            process_links(links, use_proxies, choice, AVG_STATS_PAGE)
 
             workbook.close()
             open_file(filename)
 
         elif choice == FORMAT_CHOICES['txt']:
-            process_links(links, USE_PROXIES, choice, RESEARCH_STATS_PAGE)
+            process_links(links, use_proxies, choice, RESEARCH_STATS_PAGE)
             open_file(TXT_FILENAME)
