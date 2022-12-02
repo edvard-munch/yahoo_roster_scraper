@@ -100,9 +100,6 @@ SCORING_COLUMNS = ['G', 'A', '+/-', 'PIM', 'PPP', 'SHP', 'SOG', 'FW', 'HIT', 'BL
 COLUMNS_TO_DELETE = ['Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current',
                      '% Started']
 
-# Seems like it's not scrapable
-SCHEDULE_URL = 'https://leftwinglock.com/schedules'
-
 
 def scrape_from_page(soup, element_type, attr_type, attr_name):
     return soup.find_all(element_type, {attr_type: attr_name})
