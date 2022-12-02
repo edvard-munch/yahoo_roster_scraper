@@ -1,13 +1,23 @@
 import bs4
-import requests
+import proxies_scraper
 
 SCHEDULE_URL = 'https://leftwinglock.com/schedules'
 PARSER = 'lxml'
 SCHEDULE_TABLE_CLASS = 'styled-table'
 
 
-def get_schedule():
-    web = requests.get(SCHEDULE_URL)
+def get_schedule(proxies):
+    params = {}
+    if proxies:
+        proxy = proxies_scraper.get_proxy(proxies)
+        web = proxies_scraper.get_response(SCHEDULE_URL, params,  proxies=proxies, proxy=proxy)
+
+        while not web:
+            proxy = proxies_scraper.get_proxy(proxies)
+            web = proxies_scraper.get_response(SCHEDULE_URL, params, proxies=proxies, proxy=proxy)
+    else:
+        web = proxies_scraper.get_response(SCHEDULE_URL, params)
+
     soup = bs4.BeautifulSoup(web.content, PARSER)
     tables = soup.find_all(class_=SCHEDULE_TABLE_CLASS)
     headers_map = {}

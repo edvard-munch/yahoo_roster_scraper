@@ -14,14 +14,9 @@ BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com/hockey/'
 SEASON_IN_PROGRESS = True
 SEASON_JUST_STARTED = False
 
-REQUEST_TIMEOUT = 1
-
 PROXY_CHOICES = {'Y': True, 'n': False}
 FORMAT_CHOICES = {'xlsx': '1', 'txt': '2'}
 
-CONNECTION_ERROR_MESSAGE = 'Connnection Error. Retry'
-PROXIE_CONNECTION_ATTEMPT_MESSAGE = 'Trying with IP: {}'
-PROXIES_LEFT_MESSAGE = 'Proxies left: {}'
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
 FORMAT_CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters:\n'
 PROXIES_CHOICE_MESSAGE = 'Use proxies? Y/n:\n'
@@ -132,8 +127,19 @@ def verify_sheet_name(team_name):
     return re.sub(INVALID_EXCEL_CHARACTERS_PATTERN, '', team_name)
 
 
-def get_links(link):
-    web = requests.get(link)
+def get_links(link, proxies):
+    params = {}
+    if proxies:
+        proxy = proxies_scraper.get_proxy(proxies)
+        web = proxies_scraper.get_response(link, params,  proxies=proxies, proxy=proxy)
+
+        while not web:
+            proxy = proxies_scraper.get_proxy(proxies)
+            web = proxies_scraper.get_response(link, params, proxies=proxies, proxy=proxy)
+
+    else:
+        web = proxies_scraper.get_response(link, params)
+
     soup = bs4.BeautifulSoup(web.text, PARSER)
     matchups = scrape_from_page(soup, 'div', 'class', MATCHUP_CLASSES)
 
@@ -256,42 +262,20 @@ def write_to_xlsx(table, team_name):
         col_num += 1
 
 
-def get_response(link, stats_page, **proxie_data):
-    if proxie_data:
-        print(PROXIE_CONNECTION_ATTEMPT_MESSAGE.format(proxie_data['proxy']['http']))
-
-        try:
-            web = requests.get(link, params=stats_page,
-                               proxies=proxie_data['proxy'], timeout=REQUEST_TIMEOUT)
-
-        except (requests.ConnectTimeout, OSError) as e:
-            print(CONNECTION_ERROR_MESSAGE)
-            proxie_data['proxies'].remove(proxie_data['proxy'])
-            print(PROXIES_LEFT_MESSAGE.format(len(proxie_data["proxies"])))
-            return None
-    else:
-        web = requests.get(link, params=stats_page)
-
-    return web
-
-
-def process_links(links, use_proxies, choice, stats_page):
-
-    if use_proxies:
-        proxies = proxies_scraper.scrape_proxies()
+def process_links(links, proxies, choice, stats_page):
+    if proxies:
         proxy = proxies_scraper.get_proxy(proxies)
 
     for index, link in enumerate(links):
-
-        if use_proxies:
-            web = get_response(link, stats_page,  proxies=proxies, proxy=proxy)
+        if proxies:
+            web = proxies_scraper.get_response(link, stats_page,  proxies=proxies, proxy=proxy)
 
             while not web:
                 proxy = proxies_scraper.get_proxy(proxies)
-                web = get_response(link, stats_page, proxies=proxies, proxy=proxy)
+                web = proxies_scraper.get_response(link, stats_page, proxies=proxies, proxy=proxy)
 
         else:
-            web = get_response(link, stats_page)
+            web = proxies_scraper.get_response(link, stats_page)
 
         soup = bs4.BeautifulSoup(web.text, PARSER)
 
@@ -369,11 +353,11 @@ def validate_input(message, choices):
         print(INCORRECT_CHOICE_MESSAGE)
         return None
 
-def league_exist_and_scrapable():
+def league_exist_and_scrapable(proxies):
     league_id = input(INPUT_LEAGUE_ID_MESSAGE)
     link = BASE_FANTASY_URL + league_id
 
-    return get_links(link)
+    return get_links(link, proxies)
 
 
 if __name__ == '__main__':
@@ -383,10 +367,14 @@ if __name__ == '__main__':
         use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
 
     use_proxies = PROXY_CHOICES[use_proxies_choice]
+    if use_proxies:
+        proxies = proxies_scraper.scrape_proxies()
+    else:
+        proxies = []
 
-    team_links = league_exist_and_scrapable()
+    team_links = league_exist_and_scrapable(proxies)
     while not team_links:
-        team_links = league_exist_and_scrapable()
+        team_links = league_exist_and_scrapable(proxies)
 
     choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
 
@@ -397,11 +385,11 @@ if __name__ == '__main__':
         filename = get_filename()
         workbook = xlsxwriter.Workbook(filename)
 
-        process_links(team_links, use_proxies, choice, AVG_STATS_PAGE)
+        process_links(team_links, proxies, choice, AVG_STATS_PAGE)
 
         workbook.close()
         open_file(filename)
 
     elif choice == FORMAT_CHOICES['txt']:
-        process_links(team_links, use_proxies, choice, RESEARCH_STATS_PAGE)
+        process_links(team_links, proxies, choice, RESEARCH_STATS_PAGE)
         open_file(TXT_FILENAME)
