@@ -8,6 +8,7 @@ import time
 import xlsxwriter
 
 import proxies_scraper
+import schedule_scraper
 
 
 BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com/hockey/'
@@ -91,9 +92,12 @@ START_HEADERS = {
 }
 
 SCORING_COLUMNS = ['G', 'A', '+/-', 'PIM', 'PPP', 'SHP', 'SOG', 'FW', 'HIT', 'BLK', 'GWG']
-
 COLUMNS_TO_DELETE = ['Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current',
                      '% Started']
+GAMES_THIS_WEEK_COLUMN = 'GP'
+
+NHL_TEAM_NAMES_MAP = {'MON': 'MTL', 'ANH': 'ANA', 'NJ': 'NJD', 'LA': 'LOS',
+                      'CLS': 'CBJ', 'SJ': 'SJS', 'TB': 'TBL', 'WAS': 'WSH'}
 
 
 def scrape_from_page(soup, element_type, attr_type, attr_name):
@@ -178,10 +182,12 @@ def get_headers(soup):
         if start_adding:
             headers[name] = []
 
+    headers[GAMES_THIS_WEEK_COLUMN] = []
+
     return headers
 
 
-def get_body(soup):
+def get_body(soup, schedule):
     rows = soup.find('tbody').find_all('tr')
     cell_values = []
 
@@ -228,6 +234,16 @@ def get_body(soup):
 
                 index += 1
 
+        cell_values.append([])
+
+        if empty:
+            cell_values[index].append(EMPTY_CELL)
+        else:
+            try:
+                cell_values[index].append(schedule[team.upper()][GAMES_THIS_WEEK_COLUMN])
+            except KeyError:
+                cell_values[index].append(schedule[NHL_TEAM_NAMES_MAP[team.upper()]][GAMES_THIS_WEEK_COLUMN])
+
     return cell_values
 
 
@@ -262,7 +278,7 @@ def write_to_xlsx(table, team_name):
         col_num += 1
 
 
-def process_links(links, proxies, choice, stats_page):
+def process_links(links, proxies, choice, stats_page, schedule):
     if proxies:
         proxy = proxies_scraper.get_proxy(proxies)
 
@@ -283,7 +299,7 @@ def process_links(links, proxies, choice, stats_page):
 
         if choice == FORMAT_CHOICES['xlsx']:
             headers = get_headers(soup)
-            body = get_body(soup)
+            body = get_body(soup, schedule)
             table = map_headers_to_body(headers, body)
             write_to_xlsx(table, team_name)
 
@@ -372,6 +388,8 @@ if __name__ == '__main__':
     else:
         proxies = []
 
+    schedule = schedule_scraper.get_schedule(proxies)
+
     team_links = league_exist_and_scrapable(proxies)
     while not team_links:
         team_links = league_exist_and_scrapable(proxies)
@@ -385,11 +403,11 @@ if __name__ == '__main__':
         filename = get_filename()
         workbook = xlsxwriter.Workbook(filename)
 
-        process_links(team_links, proxies, choice, AVG_STATS_PAGE)
+        process_links(team_links, proxies, choice, AVG_STATS_PAGE, schedule)
 
         workbook.close()
         open_file(filename)
 
     elif choice == FORMAT_CHOICES['txt']:
-        process_links(team_links, proxies, choice, RESEARCH_STATS_PAGE)
+        process_links(team_links, proxies, choice, RESEARCH_STATS_PAGE, schedule)
         open_file(TXT_FILENAME)
