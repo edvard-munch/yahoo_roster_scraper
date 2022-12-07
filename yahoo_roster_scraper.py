@@ -250,18 +250,27 @@ def get_body(soup, schedule):
 
 def map_headers_to_body(headers, body):
     headers_keys = headers.copy().keys()
+    games_per_week_column = body[-1]
 
     for index, key in enumerate(headers_keys):
         headers[key] = body[index]
 
         if (SEASON_IN_PROGRESS) and (key in SCORING_COLUMNS):
-            # hacky line for computing totals of avg scoring stats
-            headers[key].append(sum([string_to_num(value, None) for value in headers[key]]))
+            headers[key].append(calculate_totals(headers[key], games_per_week_column))
 
         if key in COLUMNS_TO_DELETE:
             headers.pop(key, None)
 
     return headers
+
+
+def calculate_totals(column_values, games_per_week):
+    total = 0
+
+    for index, value in enumerate(column_values):
+        total += string_to_num(value, None) * string_to_num(games_per_week[index], None)
+
+    return total
 
 
 def string_to_num(value, delimeter):
