@@ -234,7 +234,8 @@ def get_body(soup, schedule):
 
                 index += 1
 
-        cell_values.append([])
+        if i == 0:
+            cell_values.append([])
 
         if empty:
             cell_values[index].append(EMPTY_CELL)
