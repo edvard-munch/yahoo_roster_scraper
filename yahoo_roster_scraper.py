@@ -237,7 +237,7 @@ def get_body(soup, schedule):
             cell_values.append([])
 
         if empty:
-            cell_values[index].append(EMPTY_CELL)
+            cell_values[index].append(0)
         else:
             try:
                 cell_values[index].append(schedule[team.upper()][schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN])
@@ -267,7 +267,7 @@ def calculate_totals(column_values, games_per_week):
     total = 0
 
     for index, value in enumerate(column_values):
-        total += string_to_num(value, None) * string_to_num(games_per_week[index], None)
+        total += string_to_num(value, None) * games_per_week[index]
 
     return total
 
