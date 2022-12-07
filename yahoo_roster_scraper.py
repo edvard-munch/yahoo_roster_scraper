@@ -94,7 +94,6 @@ START_HEADERS = {
 SCORING_COLUMNS = ['G', 'A', '+/-', 'PIM', 'PPP', 'SHP', 'SOG', 'FW', 'HIT', 'BLK', 'GWG']
 COLUMNS_TO_DELETE = ['Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current',
                      '% Started']
-GAMES_THIS_WEEK_COLUMN = 'GP'
 
 NHL_TEAM_NAMES_MAP = {'MON': 'MTL', 'ANH': 'ANA', 'NJ': 'NJD', 'LA': 'LOS',
                       'CLS': 'CBJ', 'SJ': 'SJS', 'TB': 'TBL', 'WAS': 'WSH'}
@@ -182,7 +181,7 @@ def get_headers(soup):
         if start_adding:
             headers[name] = []
 
-    headers[GAMES_THIS_WEEK_COLUMN] = []
+    headers[schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN] = []
 
     return headers
 
@@ -241,9 +240,9 @@ def get_body(soup, schedule):
             cell_values[index].append(EMPTY_CELL)
         else:
             try:
-                cell_values[index].append(schedule[team.upper()][GAMES_THIS_WEEK_COLUMN])
+                cell_values[index].append(schedule[team.upper()][schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN])
             except KeyError:
-                cell_values[index].append(schedule[NHL_TEAM_NAMES_MAP[team.upper()]][GAMES_THIS_WEEK_COLUMN])
+                cell_values[index].append(schedule[NHL_TEAM_NAMES_MAP[team.upper()]][schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN])
 
     return cell_values
 
