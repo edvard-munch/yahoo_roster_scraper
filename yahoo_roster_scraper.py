@@ -24,6 +24,7 @@ PROXIES_CHOICE_MESSAGE = 'Use proxies? Y/n:\n'
 INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
 INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
 LEAGUE_ID_INCORRECT_MESSAGE = 'League with this ID does not exist or not publicly viewable'
+LEAGUE_SCRAPING_SUCCESS_MESSAGE = "League's main page scraped!"
 
 PARSER = 'lxml'
 EMPTY_CELL = '-'
@@ -445,6 +446,7 @@ def league_exist_and_scrapable(proxies):
     link = BASE_FANTASY_URL + league_id
 
     return get_links(link, proxies)
+        print(LEAGUE_SCRAPING_SUCCESS_MESSAGE)
 
 
 if __name__ == '__main__':
