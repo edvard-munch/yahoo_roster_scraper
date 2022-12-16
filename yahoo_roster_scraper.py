@@ -18,6 +18,7 @@ PROXY_CHOICES = {'Y': True, 'n': False}
 FORMAT_CHOICES = {'xlsx': '1', 'txt': '2'}
 
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
+NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE = '{}/{} matchups ready'
 FORMAT_CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters:\n'
 PROXIES_CHOICE_MESSAGE = 'Use proxies? Y/n:\n'
 INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
@@ -31,9 +32,12 @@ TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
 XLSX_FILENAME_TEMPLATE = 'reports/stats_list_{}.xlsx'
 TXT_FILENAME = 'reports/clean_rosters.txt'
 TEAM_NAME_HEADER = '--------------- {} ---------------'
+MATCHUPS_WORKSHEET_NAME = 'MATCHUPS'
 
-MATCHUP_CLASSES = 'Grid-table Phone-px-med'
+MATCHUP_CLASSES = 'Linkable Listitem No-p'
 TEAMS_IN_MATCHUP_CLASSES = 'Fz-sm Phone-fz-xs Ell Mawpx-150'
+MATCHUP_RESULT_CLASSES = 'Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdrbot'
+TEAM_NAME_MATCHUP_RESULT_CLASSES = 'Grid-u Nowrap'
 HEADERS_CLASSES = 'Alt Last'
 TEAM_NAME_CLASSES = 'Navtarget Py-sm Pstart-lg F-reset Wordwrap-bw No-case'
 EMPTY_SPOT_CLASSES = 'Nowrap emptyplayer Inlineblock'
@@ -325,6 +329,65 @@ def process_links(links, proxies, choice, stats_page, schedule):
         print(NUMBER_OF_TEAMS_PROCESSED_MESSAGE.format(index+1, len(links)))
 
 
+def process_matchups(matchup_links, proxies):
+    worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
+    headers = []
+    worksheet_row_number = 0
+    worksheet_rows = []
+    worksheet_rows.append([])
+
+    if proxies:
+        proxy = proxies_scraper.get_proxy(proxies)
+    else:
+        proxy = None
+
+    for link_index, link in enumerate(matchup_links):
+        soup, proxy = parse_full_page(link, proxies, proxy)
+        # proxy = parse_full_page(link, proxies, proxy)[1]
+        table = scrape_from_page(soup, 'table', 'class', MATCHUP_RESULT_CLASSES)[0]
+
+        if not headers:
+            headers = table.find('thead').find_all('th')
+
+            for header in headers:
+                worksheet_rows[worksheet_row_number].append(header.string)
+
+            worksheet_row_number += 1
+            worksheet_rows.append([])
+
+        rows = table.find('tbody').find_all('tr')
+        number_of_cells = 0
+
+        for row in rows:
+            cells = row.find_all('td')
+
+            if not number_of_cells:
+                number_of_cells = len(cells)
+
+            for index, cell in enumerate(cells):
+                try:
+                    name = cell.find('span', class_=TEAM_NAME_MATCHUP_RESULT_CLASSES).string
+
+                except AttributeError:
+                    name = cell.string
+
+                worksheet_rows[worksheet_row_number].append(name)
+
+            worksheet_row_number += 1
+            worksheet_rows.append([])
+
+        print(NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE.format(link_index+1, len(matchup_links)))
+
+        for cell in range(0, number_of_cells):
+            worksheet_rows[worksheet_row_number].append(None)
+
+        worksheet_row_number += 1
+        worksheet_rows.append([])
+
+    for index, row in enumerate(worksheet_rows):
+        worksheet.write_row(index, 0, row)
+
+
 def parse_clean_names(bodies):
     full_roster = []
 
@@ -408,9 +471,12 @@ if __name__ == '__main__':
         choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
 
     if choice == FORMAT_CHOICES['xlsx']:
+        matchup_links = league_scrapable[0]
+
         filename = get_filename()
         workbook = xlsxwriter.Workbook(filename)
 
+        process_matchups(matchup_links, proxies)
         process_links(team_links, proxies, choice, AVG_STATS_PAGE, schedule)
 
         workbook.close()
