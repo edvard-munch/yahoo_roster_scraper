@@ -280,17 +280,6 @@ def string_to_num(value, delimeter):
     return float(re.sub(EMPTY_STRING_PATTERN, '0', value.split(delimeter)[0]))
 
 
-def write_to_xlsx(table, team_name):
-    sheet_name = verify_sheet_name(team_name)
-    worksheet = workbook.add_worksheet(name=sheet_name)
-
-    col_num = 0
-    for key, value in table.items():
-        worksheet.write(0, col_num, key)
-        worksheet.write_column(1, col_num, value)
-        col_num += 1
-
-
 def process_links(links, proxies, choice, stats_page, schedule):
     if proxies:
         proxy = proxies_scraper.get_proxy(proxies)
@@ -314,7 +303,9 @@ def process_links(links, proxies, choice, stats_page, schedule):
             headers = get_headers(soup)
             body = get_body(soup, schedule)
             table = map_headers_to_body(headers, body)
-            write_to_xlsx(table, team_name)
+            sheet_name = verify_sheet_name(team_name)
+            worksheet = workbook.add_worksheet(name=sheet_name)
+            write_to_xlsx(table, worksheet)
 
         elif choice == FORMAT_CHOICES['txt']:
             bodies = soup.find_all('tbody')
@@ -447,6 +438,14 @@ def league_exist_and_scrapable(proxies):
 
     return get_links(link, proxies)
         print(LEAGUE_SCRAPING_SUCCESS_MESSAGE)
+
+
+def write_to_xlsx(table, worksheet):
+    col_num = 0
+    for key, value in table.items():
+        worksheet.write(0, col_num, key)
+        worksheet.write_column(1, col_num, value)
+        col_num += 1
 
 
 if __name__ == '__main__':
