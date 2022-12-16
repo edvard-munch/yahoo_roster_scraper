@@ -134,39 +134,6 @@ def verify_sheet_name(team_name):
     return re.sub(INVALID_EXCEL_CHARACTERS_PATTERN, '', team_name)
 
 
-def get_links(link, proxies):
-    params = {}
-    if proxies:
-        proxy = proxies_scraper.get_proxy(proxies)
-        web = proxies_scraper.get_response(link, params,  proxies=proxies, proxy=proxy)
-
-        while not web:
-            proxy = proxies_scraper.get_proxy(proxies)
-            web = proxies_scraper.get_response(link, params, proxies=proxies, proxy=proxy)
-
-    else:
-        web = proxies_scraper.get_response(link, params)
-
-    soup = bs4.BeautifulSoup(web.text, PARSER)
-    matchups = scrape_from_page(soup, 'div', 'class', MATCHUP_CLASSES)
-
-    if matchups:
-        team_links = []
-        for match in matchups:
-            teams = match.find_all('div', {'class': TEAMS_IN_MATCHUP_CLASSES})
-
-            for team in teams:
-                html_link = team.find('a')
-                base_team_url = html_link.get('href')
-                team_links.append(base_team_url)
-
-        return team_links
-
-    else:
-        print(LEAGUE_ID_INCORRECT_MESSAGE)
-        return None
-
-
 def get_headers(soup):
     header_row = soup.find('tr', class_=HEADERS_CLASSES)
     headers = {**START_HEADERS, **{}}
@@ -335,7 +302,6 @@ def process_matchups(matchup_links, proxies):
 
     for link_index, link in enumerate(matchup_links):
         soup, proxy = parse_full_page(link, proxies, proxy)
-        # proxy = parse_full_page(link, proxies, proxy)[1]
         table = scrape_from_page(soup, 'table', 'class', MATCHUP_RESULT_CLASSES)[0]
 
         if not headers:
@@ -378,6 +344,23 @@ def process_matchups(matchup_links, proxies):
 
     for index, row in enumerate(worksheet_rows):
         worksheet.write_row(index, 0, row)
+
+
+def parse_full_page(link, proxies, proxy=None, params={}):
+    if proxies:
+        if not proxy:
+            proxy = proxies_scraper.get_proxy(proxies)
+
+        web = proxies_scraper.get_response(link, params,  proxies=proxies, proxy=proxy)
+
+        while not web:
+            proxy = proxies_scraper.get_proxy(proxies)
+            web = proxies_scraper.get_response(link, params, proxies=proxies, proxy=proxy)
+
+    else:
+        web = proxies_scraper.get_response(link, params)
+
+    return (bs4.BeautifulSoup(web.text, PARSER), proxy)
 
 
 def parse_clean_names(bodies):
@@ -432,12 +415,29 @@ def validate_input(message, choices):
         print(INCORRECT_CHOICE_MESSAGE)
         return None
 
-def league_exist_and_scrapable(proxies):
-    league_id = input(INPUT_LEAGUE_ID_MESSAGE)
-    link = BASE_FANTASY_URL + league_id
 
-    return get_links(link, proxies)
+def get_links(soup):
+    matchups = scrape_from_page(soup, 'li', 'class', MATCHUP_CLASSES)
+
+    if matchups:
+        matchup_links = []
+        team_links = []
+
+        for match in matchups:
+            matchup_links.append(f"{link}/{match.attrs['data-target'].split('/')[-1]}")
+            teams = match.find_all('div', {'class': TEAMS_IN_MATCHUP_CLASSES})
+
+            for team in teams:
+                html_link = team.find('a')
+                base_team_url = html_link.get('href')
+                team_links.append(base_team_url)
+
         print(LEAGUE_SCRAPING_SUCCESS_MESSAGE)
+        return (matchup_links, team_links)
+
+    else:
+        print(LEAGUE_ID_INCORRECT_MESSAGE)
+        return None
 
 
 def write_to_xlsx(table, worksheet):
@@ -455,18 +455,26 @@ if __name__ == '__main__':
         use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
 
     use_proxies = PROXY_CHOICES[use_proxies_choice]
+
     if use_proxies:
         proxies = proxies_scraper.scrape_proxies()
     else:
         proxies = []
 
+    league_id = input(INPUT_LEAGUE_ID_MESSAGE)
+    link = BASE_FANTASY_URL + league_id
+    main_page_soup = parse_full_page(link, proxies)[0]
+    league_scrapable = get_links(main_page_soup)
 
-    team_links = league_exist_and_scrapable(proxies)
-    while not team_links:
-        team_links = league_exist_and_scrapable(proxies)
+    while not league_scrapable:
+        league_id = input(INPUT_LEAGUE_ID_MESSAGE)
+        link = BASE_FANTASY_URL + league_id
+        main_page_soup = parse_full_page(link, proxies)[0]
+        league_scrapable = get_links(main_page_soup)
+
+    team_links = league_scrapable[1]
 
     choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
-
     while not choice:
         choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
 
