@@ -8,6 +8,7 @@ PARSER = 'lxml'
 SCHEDULE_TABLE_CLASS = 'styled-table'
 GAMES_LEFT_THIS_WEEK_COLUMN = 'GL'
 END_OF_THE_WEEK = 8               # for a range's `stop` parameter
+SHEDULE_SCRAPING_SUCCESS_MESSAGE = 'Schedule scraped!'
 
 
 def get_schedule(proxies):
@@ -52,5 +53,7 @@ def get_schedule(proxies):
                             team_schedules[team_name][headers_map[len(row)]] += 1
                     else:
                         pass
+
+    print(SHEDULE_SCRAPING_SUCCESS_MESSAGE)
 
     return team_schedules                    
