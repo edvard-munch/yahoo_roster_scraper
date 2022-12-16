@@ -280,7 +280,7 @@ def string_to_num(value, delimeter):
     return float(re.sub(EMPTY_STRING_PATTERN, '0', value.split(delimeter)[0]))
 
 
-def process_links(links, proxies, choice, stats_page, schedule):
+def process_links(links, proxies, choice, stats_page, schedule=None):
     if proxies:
         proxy = proxies_scraper.get_proxy(proxies)
 
@@ -484,5 +484,5 @@ if __name__ == '__main__':
         open_file(filename)
 
     elif choice == FORMAT_CHOICES['txt']:
-        process_links(team_links, proxies, choice, RESEARCH_STATS_PAGE, schedule)
+        process_links(team_links, proxies, choice, RESEARCH_STATS_PAGE)
         open_file(TXT_FILENAME)
