@@ -461,7 +461,6 @@ if __name__ == '__main__':
     else:
         proxies = []
 
-    schedule = schedule_scraper.get_schedule(proxies)
 
     team_links = league_exist_and_scrapable(proxies)
     while not team_links:
@@ -473,6 +472,7 @@ if __name__ == '__main__':
         choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
 
     if choice == FORMAT_CHOICES['xlsx']:
+        schedule = schedule_scraper.get_schedule(proxies)
         matchup_links = league_scrapable[0]
 
         filename = get_filename()
