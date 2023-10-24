@@ -36,7 +36,7 @@ TEAM_NAME_HEADER = '--------------- {} ---------------'
 MATCHUPS_WORKSHEET_NAME = 'MATCHUPS'
 
 MATCHUP_CLASSES = 'Linkable Listitem No-p'
-TEAMS_IN_MATCHUP_CLASSES = 'Fz-sm Phone-fz-xs Ell Mawpx-150'
+TEAMS_IN_MATCHUP_CLASSES = 'Fz-sm.Phone-fz-xs.Ell'
 MATCHUP_RESULT_CLASSES = 'Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdrbot'
 TEAM_NAME_MATCHUP_RESULT_CLASSES = 'Grid-u Nowrap'
 HEADERS_CLASSES = 'Alt Last'
@@ -425,7 +425,7 @@ def get_links(soup):
 
         for match in matchups:
             matchup_links.append(f"{link}/{match.attrs['data-target'].split('/')[-1]}")
-            teams = match.find_all('div', {'class': TEAMS_IN_MATCHUP_CLASSES})
+            teams = match.select(f"div.{TEAMS_IN_MATCHUP_CLASSES}")
 
             for team in teams:
                 html_link = team.find('a')
