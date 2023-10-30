@@ -276,7 +276,6 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
 
         elif choice == FORMAT_CHOICES['txt']:
             bodies = soup.find_all('tbody')
-            parse_clean_names(bodies)
 
             if index == 0:
                 file_mode = 'w'
