@@ -1,5 +1,6 @@
 import bs4
 import os
+import num2words
 import re
 import sys
 import subprocess
@@ -83,6 +84,9 @@ PRESEASON = 1
 SEASON = 2
 
 ROSTERED_COLUMN_INDEX = 7
+WIDE_COLUMN_WIDTH = 20
+NUMBER_OF_COLUMNS = 15
+COLUMNS = {num2words.num2words(i+1, to='ordinal'): (i, i) for i in range(NUMBER_OF_COLUMNS)}
 
 if SEASON_IN_PROGRESS:
     START_FROM = 1
@@ -289,6 +293,7 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
 
 def process_matchups(matchup_links, proxies):
     worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
+    worksheet.set_column(*COLUMNS['first'], WIDE_COLUMN_WIDTH)
     headers = []
     worksheet_row_number = 0
     worksheet_rows = []
@@ -441,6 +446,8 @@ def get_links(soup):
 
 def write_to_xlsx(table, worksheet):
     col_num = 0
+    worksheet.set_column(*COLUMNS['second'], WIDE_COLUMN_WIDTH)
+
     for key, value in table.items():
         worksheet.write(0, col_num, key)
         worksheet.write_column(1, col_num, value)
