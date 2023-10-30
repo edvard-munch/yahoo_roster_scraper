@@ -37,14 +37,14 @@ MATCHUPS_WORKSHEET_NAME = 'MATCHUPS'
 
 MATCHUP_CLASSES = 'Linkable Listitem No-p'
 TEAMS_IN_MATCHUP_CLASSES = 'Fz-sm.Phone-fz-xs.Ell'
-MATCHUP_RESULT_CLASSES = 'Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdrbot'
+MATCHUP_RESULT_CLASSES = 'Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdr'
 TEAM_NAME_MATCHUP_RESULT_CLASSES = 'Grid-u Nowrap'
 HEADERS_CLASSES = 'Alt Last'
-TEAM_NAME_CLASSES = 'Navtarget Py-sm Pstart-lg F-reset Wordwrap-bw No-case'
+TEAM_NAME_CLASSES = 'team-name'
 EMPTY_SPOT_CLASSES = 'Nowrap emptyplayer Inlineblock'
 SPOT_CLASS = 'pos-label'
 PLAYER_NAME_CLASS = 'player'
-PLAYER_LINK_CLASSES = 'Nowrap name F-link'
+PLAYER_LINK_CLASSES = 'Nowrap name F-link playernote'
 TEAM_AND_POSITION_SPAN_CLASS = "Fz-xxs"
 
 EMPTY_SPOT_STRING = 'Empty'
@@ -108,7 +108,7 @@ def scrape_from_page(soup, element_type, attr_type, attr_name):
 
 
 def get_team_name(soup):
-    name_link = scrape_from_page(soup, 'a', 'class', TEAM_NAME_CLASSES)[0]
+    name_link = scrape_from_page(soup, 'span', 'class', TEAM_NAME_CLASSES)[0]
     return name_link.text.split('  ')[0]
 
 
