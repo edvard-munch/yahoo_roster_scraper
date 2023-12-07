@@ -1,4 +1,5 @@
 import bs4
+import json
 import os
 import num2words
 import re
@@ -9,6 +10,7 @@ import xlsxwriter
 
 import proxies_scraper
 import schedule_scraper
+import positions_scraper
 
 
 BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com/hockey/'
@@ -16,11 +18,12 @@ SEASON_IN_PROGRESS = True
 SEASON_JUST_STARTED = False
 
 PROXY_CHOICES = {'Y': True, 'n': False}
-FORMAT_CHOICES = {'xlsx': '1', 'txt': '2'}
+FORMAT_CHOICES = {'xlsx': '1', 'txt': '2', 'json': '3'}
+
 
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
 NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE = '{}/{} matchups ready'
-FORMAT_CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters:\n'
+FORMAT_CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters, input 3 for positions in JSON file:\n'
 PROXIES_CHOICE_MESSAGE = 'Use proxies? Y/n:\n'
 INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
 INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
@@ -33,6 +36,7 @@ EMPTY_CELL = '-'
 TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
 XLSX_FILENAME_TEMPLATE = 'reports/stats_list_{}.xlsx'
 TXT_FILENAME = 'reports/clean_rosters.txt'
+POSITIONS_FILENAME = 'reports/positions.json'
 TEAM_NAME_HEADER = '--------------- {} ---------------'
 MATCHUPS_WORKSHEET_NAME = 'MATCHUPS'
 
@@ -255,6 +259,7 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
     if proxies:
         proxy = proxies_scraper.get_proxy(proxies)
 
+    json_dump_data = {}
     for index, link in enumerate(links):
         if proxies:
             web = proxies_scraper.get_response(link, stats_page,  proxies=proxies, proxy=proxy)
@@ -278,7 +283,7 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
             worksheet = workbook.add_worksheet(name=sheet_name)
             write_to_xlsx(table, worksheet)
 
-        elif choice == FORMAT_CHOICES['txt']:
+        else:
             bodies = soup.find_all('tbody')
 
             if index == 0:
@@ -286,10 +291,34 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
             else:
                 file_mode = 'a'
 
-            write_roster_to_txt(parse_clean_names(bodies), file_mode, team_name)
+            if choice == FORMAT_CHOICES['txt']:
+                data = parse_clean_names(bodies)
+                write_roster_to_txt(data, file_mode, team_name)
+
+            elif choice == FORMAT_CHOICES['json']:
+                json_dump_data[team_name] = parse_for_json(bodies[0], team_name)
 
         print(NUMBER_OF_TEAMS_PROCESSED_MESSAGE.format(index+1, len(links)))
 
+    if choice == FORMAT_CHOICES['json']:
+        with open(POSITIONS_FILENAME, "w") as text_file:
+            json.dump(json_dump_data, text_file, indent=2)
+
+
+def parse_for_json(skaters, team_name):
+    rows = skaters.find_all('tr')
+    roster = []
+
+    for row_index, row in enumerate(rows):
+        for cell_index, cell in enumerate(row):
+            if (PLAYER_NAME_CLASS in cell.attrs['class']):
+                player_link = cell.find(class_=PLAYER_LINK_CLASSES)
+
+                if player_link:
+                    name = player_link.string
+                    pos_data = positions_scraper.get_positional_data([], name)
+                    roster.append(pos_data)
+    return roster
 
 def process_matchups(matchup_links, proxies):
     worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
@@ -497,6 +526,10 @@ if __name__ == '__main__':
         workbook.close()
         open_file(filename)
 
-    elif choice == FORMAT_CHOICES['txt']:
+    else:
         process_links(team_links, proxies, choice, RESEARCH_STATS_PAGE)
-        open_file(TXT_FILENAME)
+
+        if choice == FORMAT_CHOICES['txt']:
+            open_file(TXT_FILENAME)
+        elif choice == FORMAT_CHOICES['json']:
+            open_file(POSITIONS_FILENAME)
