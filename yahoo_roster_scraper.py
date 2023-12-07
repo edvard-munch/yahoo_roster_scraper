@@ -203,7 +203,7 @@ def get_body(soup, schedule):
 
             else:
                 if empty and (index > 0):
-                   cell_values[index].append(EMPTY_CELL)
+                    cell_values[index].append(EMPTY_CELL)
 
                 else:  
                     cell_values[index].append(cell.string)
@@ -317,6 +317,7 @@ def parse_for_json(skaters, team_name):
                     pos_data = positions_scraper.get_positional_data([], name)
                     roster.append(pos_data)
     return roster
+
 
 def process_matchups(matchup_links, proxies):
     worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
