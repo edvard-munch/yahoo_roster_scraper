@@ -15,11 +15,26 @@ import positions_scraper
 
 BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com/hockey/'
 SEASON_IN_PROGRESS = True
-SEASON_JUST_STARTED = False
+SEASON_JUST_STARTED = False  # if stats are not representative enough yet, use stats from the last season
+
+AVG_STATS_PAGE = {
+    'stat1': 'AS',
+}
+
+if SEASON_JUST_STARTED:
+    AVG_STATS_PAGE['stat2'] = 'AS_2022'  # Calculate year programmatically
+
+if SEASON_IN_PROGRESS:
+    START_FROM = 1
+    NAME_COLUMN = 1
+else:
+    START_FROM = 1
+    NAME_COLUMN = 0
 
 PROXY_CHOICES = {'Y': True, 'n': False}
 FORMAT_CHOICES = {'xlsx': '1', 'txt': '2', 'json': '3'}
 
+PARSER = 'lxml'
 
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
 NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE = '{}/{} matchups ready'
@@ -29,9 +44,6 @@ INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
 INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
 LEAGUE_ID_INCORRECT_MESSAGE = 'League with this ID does not exist or not publicly viewable'
 LEAGUE_SCRAPING_SUCCESS_MESSAGE = "League's main page scraped!"
-
-PARSER = 'lxml'
-EMPTY_CELL = '-'
 
 TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
 XLSX_FILENAME_TEMPLATE = 'reports/stats_list_{}.xlsx'
@@ -53,25 +65,18 @@ PLAYER_LINK_CLASSES = 'Nowrap name F-link playernote'
 TEAM_AND_POSITION_SPAN_CLASS = "Fz-xxs"
 
 EMPTY_SPOT_STRING = 'Empty'
-
-AVG_STATS_PAGE = {
-    'stat1': 'AS',
-}
+EMPTY_CELL = '-'
 
 RESEARCH_STATS_PAGE = {
     'stat1': 'R',
 }
 
-# if stats are not representative enough yet, use stats from the last season
-if SEASON_JUST_STARTED:
-    AVG_STATS_PAGE['stat2'] = 'AS_2021'
-
-INVALID_EXCEL_CHARACTERS_PATTERN = r"[*\\\/]"
-EMPTY_STRING_PATTERN = r'^-$'
-
 OPPONENTS_PAGE = {
     'stat1': 'O',
 }
+
+INVALID_EXCEL_CHARACTERS_PATTERN = r"[*\\\/]"
+EMPTY_STRING_PATTERN = r'^-$'
 
 PLATFORMS = {
     'Windows': 'win32',
@@ -91,13 +96,6 @@ ROSTERED_COLUMN_INDEX = 7
 WIDE_COLUMN_WIDTH = 20
 NUMBER_OF_COLUMNS = 15
 COLUMNS = {num2words.num2words(i+1, to='ordinal'): (i, i) for i in range(NUMBER_OF_COLUMNS)}
-
-if SEASON_IN_PROGRESS:
-    START_FROM = 1
-    NAME_COLUMN = 1
-else:
-    START_FROM = 1
-    NAME_COLUMN = 0
 
 START_HEADERS = {
     'Spot': [], 'Forwards/Defensemen': [], 'Team': [], 'Pos': []
