@@ -397,21 +397,20 @@ def parse_full_page(link, proxies, proxy=None, params={}):
 
 def parse_clean_names(bodies):
     full_roster = []
-
     for body in bodies:
         rows = body.find_all('tr')
 
         txt = []
-
         for row_index, row in enumerate(rows):
             for cell_index, cell in enumerate(row):
                 if (PLAYER_NAME_CLASS in cell.attrs['class']):
-                    player_link = cell.find(class_ = PLAYER_LINK_CLASSES)
+                    player_link = cell.find(class_=PLAYER_LINK_CLASSES)
                     txt.append([])
 
                     if player_link:
                         name = player_link.string
                         txt[row_index].append(name)
+
                     else:
                         txt[row_index].append(EMPTY_SPOT_STRING)
 
