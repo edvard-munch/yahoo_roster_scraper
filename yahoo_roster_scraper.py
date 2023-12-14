@@ -5,7 +5,7 @@ import num2words
 import re
 import sys
 import subprocess
-import time
+import datetime
 import xlsxwriter
 
 import proxies_scraper
@@ -132,7 +132,8 @@ def get_team_name(soup):
 
 
 def get_filename():
-    timestamp = time.strftime(TIMESTAMP_FORMAT)
+    now = datetime.datetime.now()
+    timestamp = datetime.datetime.strftime(now, TIMESTAMP_FORMAT)
     filename = XLSX_FILENAME_TEMPLATE.format(timestamp)
     return filename
 
