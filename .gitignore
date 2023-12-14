@@ -1,3 +1,5 @@
 /venv
 /reports
 /__pycache__
+google_credentials.json
+google_token.pickle
