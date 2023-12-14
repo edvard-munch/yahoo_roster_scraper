@@ -38,7 +38,10 @@ PARSER = 'lxml'
 
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
 NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE = '{}/{} matchups ready'
-FORMAT_CHOICE_MESSAGE = 'Input 1 for full stats xls tables, input 2 for simple txt rosters, input 3 for positions in JSON file:\n'
+FORMAT_CHOICE_MESSAGE = ("Input 1 for full stats xls tables\n"
+                         "Input 2 for simple txt rosters\n"
+                         "Input 3 for positions in JSON file:\n")
+
 PROXIES_CHOICE_MESSAGE = 'Use proxies? Y/n:\n'
 INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
 INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
@@ -83,10 +86,7 @@ PLATFORMS = {
     'Mac_OS': 'darwin',
 }
 
-FILE_OPENERS = {
-    'Linux': 'xdg-open',
-    'Mac_OS': 'open'
-}
+FILE_OPENERS = {'Linux': 'xdg-open', 'Mac_OS': 'open'}
 
 NOT_PLAYING = ['IR', 'IR+', 'NA']
 PRESEASON = 1
@@ -95,18 +95,31 @@ SEASON = 2
 ROSTERED_COLUMN_INDEX = 7
 WIDE_COLUMN_WIDTH = 20
 NUMBER_OF_COLUMNS = 15
-COLUMNS = {num2words.num2words(i+1, to='ordinal'): (i, i) for i in range(NUMBER_OF_COLUMNS)}
-
-START_HEADERS = {
-    'Spot': [], 'Forwards/Defensemen': [], 'Team': [], 'Pos': []
+COLUMNS = {
+    num2words.num2words(i + 1, to='ordinal'): (i, i)
+    for i in range(NUMBER_OF_COLUMNS)
 }
 
-SCORING_COLUMNS = ['G', 'A', '+/-', 'PIM', 'PPP', 'SHP', 'SOG', 'FW', 'HIT', 'BLK', 'GWG']
-COLUMNS_TO_DELETE = ['Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current',
-                     '% Started']
+START_HEADERS = {'Spot': [], 'Forwards/Defensemen': [], 'Team': [], 'Pos': []}
 
-NHL_TEAM_NAMES_MAP = {'MON': 'MTL', 'ANH': 'ANA', 'NJ': 'NJD', 'LA': 'LOS',
-                      'CLS': 'CBJ', 'SJ': 'SJS', 'TB': 'TBL', 'WAS': 'WSH'}
+SCORING_COLUMNS = [
+    'G', 'A', '+/-', 'PIM', 'PPP', 'SHP', 'SOG', 'FW', 'HIT', 'BLK', 'GWG'
+]
+COLUMNS_TO_DELETE = [
+    'Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current', '% Started'
+]
+
+NHL_TEAM_NAMES_MAP = {
+    'MON': 'MTL',
+    'ANH': 'ANA',
+    'NJ': 'NJD',
+    'LA': 'LOS',
+    'CLS': 'CBJ',
+    'SJ': 'SJS',
+    'TB': 'TBL',
+    'WAS': 'WSH'
+}
+
 
 
 def scrape_from_page(soup, element_type, attr_type, attr_name):
@@ -183,29 +196,29 @@ def get_body(soup, schedule):
 
             if (PLAYER_NAME_CLASS in cell.attrs['class']):
                 if i == 0:
-                    cell_values.extend(([],[]))
+                    cell_values.extend(([], []))
 
                 player_link = cell.find(class_=PLAYER_LINK_CLASSES)
                 if player_link:
                     name = player_link.string
-                    span = cell.find(class_ = TEAM_AND_POSITION_SPAN_CLASS)
+                    span = cell.find(class_=TEAM_AND_POSITION_SPAN_CLASS)
                     team, position = span.string.split(' - ')
 
                     cell_values[index].append(name)
-                    cell_values[index+1].append(team)
-                    cell_values[index+2].append(position)
+                    cell_values[index + 1].append(team)
+                    cell_values[index + 2].append(position)
                     index += 3
                 else:
                     cell_values[index].append(EMPTY_CELL)
-                    cell_values[index+1].append(EMPTY_CELL)
-                    cell_values[index+2].append(EMPTY_CELL)
-                    index += 3    
+                    cell_values[index + 1].append(EMPTY_CELL)
+                    cell_values[index + 2].append(EMPTY_CELL)
+                    index += 3
 
             else:
                 if empty and (index > 0):
                     cell_values[index].append(EMPTY_CELL)
 
-                else:  
+                else:
                     cell_values[index].append(cell.string)
 
                 index += 1
@@ -217,9 +230,12 @@ def get_body(soup, schedule):
             cell_values[index].append(0)
         else:
             try:
-                cell_values[index].append(schedule[team.upper()][schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN])
+                cell_values[index].append(schedule[team.upper()][
+                    schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN])
             except KeyError:
-                cell_values[index].append(schedule[NHL_TEAM_NAMES_MAP[team.upper()]][schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN])
+                cell_values[index].append(
+                    schedule[NHL_TEAM_NAMES_MAP[team.upper()]][
+                        schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN])
 
     return cell_values
 
@@ -232,7 +248,8 @@ def map_headers_to_body(headers, body):
         headers[key] = body[index]
 
         if (SEASON_IN_PROGRESS) and (key in SCORING_COLUMNS):
-            headers[key].append(calculate_totals(headers[key], games_per_week_column))
+            headers[key].append(
+                calculate_totals(headers[key], games_per_week_column))
 
         if key in COLUMNS_TO_DELETE:
             headers.pop(key, None)
@@ -260,11 +277,17 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
     json_dump_data = {}
     for index, link in enumerate(links):
         if proxies:
-            web = proxies_scraper.get_response(link, stats_page,  proxies=proxies, proxy=proxy)
+            web = proxies_scraper.get_response(link,
+                                               stats_page,
+                                               proxies=proxies,
+                                               proxy=proxy)
 
             while not web:
                 proxy = proxies_scraper.get_proxy(proxies)
-                web = proxies_scraper.get_response(link, stats_page, proxies=proxies, proxy=proxy)
+                web = proxies_scraper.get_response(link,
+                                                   stats_page,
+                                                   proxies=proxies,
+                                                   proxy=proxy)
 
         else:
             web = proxies_scraper.get_response(link, stats_page)
@@ -334,7 +357,8 @@ def process_matchups(matchup_links, proxies):
 
     for link_index, link in enumerate(matchup_links):
         soup, proxy = parse_full_page(link, proxies, proxy)
-        table = scrape_from_page(soup, 'table', 'class', MATCHUP_RESULT_CLASSES)[0]
+        table = scrape_from_page(soup, 'table', 'class',
+                                 MATCHUP_RESULT_CLASSES)[0]
 
         if not headers:
             headers = table.find('thead').find_all('th')
@@ -356,7 +380,8 @@ def process_matchups(matchup_links, proxies):
 
             for index, cell in enumerate(cells):
                 try:
-                    name = cell.find('span', class_=TEAM_NAME_MATCHUP_RESULT_CLASSES).string
+                    name = cell.find(
+                        'span', class_=TEAM_NAME_MATCHUP_RESULT_CLASSES).string
 
                 except AttributeError:
                     name = cell.string
@@ -366,7 +391,9 @@ def process_matchups(matchup_links, proxies):
             worksheet_row_number += 1
             worksheet_rows.append([])
 
-        print(NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE.format(link_index+1, len(matchup_links)))
+        print(
+            NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE.format(
+                link_index + 1, len(matchup_links)))
 
         for cell in range(0, number_of_cells):
             worksheet_rows[worksheet_row_number].append(None)
@@ -383,11 +410,17 @@ def parse_full_page(link, proxies, proxy=None, params={}):
         if not proxy:
             proxy = proxies_scraper.get_proxy(proxies)
 
-        web = proxies_scraper.get_response(link, params,  proxies=proxies, proxy=proxy)
+        web = proxies_scraper.get_response(link,
+                                           params,
+                                           proxies=proxies,
+                                           proxy=proxy)
 
         while not web:
             proxy = proxies_scraper.get_proxy(proxies)
-            web = proxies_scraper.get_response(link, params, proxies=proxies, proxy=proxy)
+            web = proxies_scraper.get_response(link,
+                                               params,
+                                               proxies=proxies,
+                                               proxy=proxy)
 
     else:
         web = proxies_scraper.get_response(link, params)
@@ -431,7 +464,8 @@ def write_roster_to_txt(full_roster, file_mode, team_name):
         text_file.write('\n\n')
 
         for roster in full_roster:
-            text_file.write("\n".join(str(item) for item in roster if item != EMPTY_SPOT_STRING))
+            text_file.write("\n".join(
+                str(item) for item in roster if item != EMPTY_SPOT_STRING))
             text_file.write('\n\n')
 
         text_file.write('\n')
@@ -455,7 +489,8 @@ def get_links(soup):
         team_links = []
 
         for match in matchups:
-            matchup_links.append(f"{link}/{match.attrs['data-target'].split('/')[-1]}")
+            matchup_links.append(
+                f"{link}/{match.attrs['data-target'].split('/')[-1]}")
             teams = match.select(f"div.{TEAMS_IN_MATCHUP_CLASSES}")
 
             for team in teams:
