@@ -60,7 +60,7 @@ TEAMS_IN_MATCHUP_CLASSES = 'Fz-sm.Phone-fz-xs.Ell'
 MATCHUP_RESULT_CLASSES = 'Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdr'
 TEAM_NAME_MATCHUP_RESULT_CLASSES = 'Grid-u Nowrap'
 HEADERS_CLASSES = 'Alt Last'
-TEAM_NAME_CLASSES = 'team-name'
+TEAM_NAME_CLASSES = 'Navtarget F-reset No-case Fz-35 Fw-b team-name'
 TEAM_NAME_STANDINGS_CLASSES = 'Grid-u F-reset Ell Mawpx-250'
 PLAYOFFS_HEADER = 'Championship Bracket'
 STANDINGS_PAGE_URL = 'https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand'
@@ -131,8 +131,8 @@ def scrape_from_page(soup, element_type, attr_type, attr_name):
 
 
 def get_team_name(soup):
-    name_link = scrape_from_page(soup, 'span', 'class', TEAM_NAME_CLASSES)[0]
-    return name_link.text.split('  ')[0]
+    name_link = scrape_from_page(soup, 'span', 'class', re.compile(TEAM_NAME_CLASSES))[0]
+    return name_link.text.strip()[:30]
 
 
 def get_filename():
