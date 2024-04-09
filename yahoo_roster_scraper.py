@@ -91,6 +91,7 @@ PLATFORMS = {
 
 FILE_OPENERS = {'Linux': 'xdg-open', 'Mac_OS': 'open'}
 
+POSITION_CODES = ['G', 'D', 'LW', 'RW', 'C']
 NOT_PLAYING = ['IR', 'IR+', 'NA']
 PRESEASON = 1
 SEASON = 2
@@ -341,8 +342,12 @@ def parse_for_json(skaters, team_name):
 
                 if player_link:
                     name = player_link.string
-                    pos_data = positions_scraper.get_positional_data([], name)
-                    roster.append(pos_data)
+                    span = cell.find(class_=TEAM_AND_POSITION_SPAN_CLASS)
+                    position = span.string.split(' - ')[1]
+                    if position != POSITION_CODES[1]:
+                        pos_data = positions_scraper.get_positional_data([],
+                                                                         name)
+                        roster.append(pos_data)
     return roster
 
 
