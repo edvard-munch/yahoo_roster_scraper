@@ -61,6 +61,9 @@ MATCHUP_RESULT_CLASSES = 'Table-plain Table Table-px-sm Table-mid Datatable Ta-c
 TEAM_NAME_MATCHUP_RESULT_CLASSES = 'Grid-u Nowrap'
 HEADERS_CLASSES = 'Alt Last'
 TEAM_NAME_CLASSES = 'team-name'
+TEAM_NAME_STANDINGS_CLASSES = 'Grid-u F-reset Ell Mawpx-250'
+PLAYOFFS_HEADER = 'Championship Bracket'
+STANDINGS_PAGE_URL = 'https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand'
 EMPTY_SPOT_CLASSES = 'Nowrap emptyplayer Inlineblock'
 SPOT_CLASS = 'pos-label'
 PLAYER_NAME_CLASS = 'player'
@@ -517,6 +520,12 @@ def write_to_xlsx(table, worksheet):
         col_num += 1
 
 
+def get_links_from_standings(league_id):
+    standings_page_soup = parse_full_page(STANDINGS_PAGE_URL.format(league_id), proxies)[0]
+    teams = scrape_from_page(standings_page_soup, 'a', 'class', TEAM_NAME_STANDINGS_CLASSES)
+    return [team_link.get('href') for team_link in teams]
+
+
 if __name__ == '__main__':
     use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
 
@@ -561,6 +570,10 @@ if __name__ == '__main__':
         open_file(filename)
 
     else:
+        playoffs_in_progress = main_page_soup.find(string=re.compile(PLAYOFFS_HEADER))
+        if playoffs_in_progress:
+            team_links = get_links_from_standings(league_id)
+
         process_links(team_links, proxies, choice, RESEARCH_STATS_PAGE)
 
         if choice == FORMAT_CHOICES['txt']:
