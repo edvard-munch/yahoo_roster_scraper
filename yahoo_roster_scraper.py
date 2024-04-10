@@ -70,6 +70,7 @@ PLAYER_NAME_CLASS = 'player'
 PLAYER_LINK_CLASSES = 'Nowrap name F-link playernote'
 TEAM_AND_POSITION_SPAN_CLASS = "Fz-xxs"
 
+MATCHUP_TOTALS_PARAMETER = '&date=total'
 EMPTY_SPOT_STRING = 'Empty'
 EMPTY_CELL = '-'
 
@@ -366,7 +367,7 @@ def process_matchups(matchup_links, proxies):
         proxy = None
 
     for link_index, link in enumerate(matchup_links):
-        soup, proxy = parse_full_page(link, proxies, proxy)
+        soup, proxy = parse_full_page(link + MATCHUP_TOTALS_PARAMETER, proxies, proxy)
         table = scrape_from_page(soup, 'table', 'class', MATCHUP_RESULT_CLASSES)[0]
 
         if not headers:
