@@ -491,7 +491,7 @@ def validate_input(message, choices):
 
 
 def get_links(soup):
-    matchups = scrape_from_page(soup, 'li', 'class', MATCHUP_CLASSES)
+    matchups = scrape_from_page(soup, 'li', 'class', re.compile(MATCHUP_CLASSES))
 
     if matchups:
         matchup_links = []
