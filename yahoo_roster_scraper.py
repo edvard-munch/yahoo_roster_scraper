@@ -457,7 +457,7 @@ def parse_clean_names(bodies):
                         txt[row_index].append(EMPTY_SPOT_STRING)
 
                 if cell_index == ROSTERED_COLUMN_INDEX:
-                    txt[row_index].append(cell.string)
+                    txt[row_index].append(cell.text)
 
         # Rostered % strings converted to float and sorted
         res = sorted(txt, key=lambda x: string_to_num(x[1], '%'), reverse=True)
