@@ -319,7 +319,7 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
                 file_mode = 'a'
 
             if choice == FORMAT_CHOICES['txt']:
-                data = parse_clean_names(bodies)
+                data = parse_clean_names(bodies[1:])
                 write_roster_to_txt(data, file_mode, team_name)
 
             elif choice == FORMAT_CHOICES['json']:
