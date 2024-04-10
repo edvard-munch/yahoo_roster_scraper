@@ -182,10 +182,11 @@ def get_headers(soup):
 
 
 def get_body(soup, schedule):
-    rows = soup.find('tbody').find_all('tr')
+    skater_rows = soup.find_all('tbody')[1].find_all('tr')
+
     cell_values = []
 
-    for i, row in enumerate(rows):
+    for i, row in enumerate(skater_rows):
         empty = row.find(class_=EMPTY_SPOT_CLASSES)
         index = 0
 
