@@ -323,7 +323,7 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
                 write_roster_to_txt(data, file_mode, team_name)
 
             elif choice == FORMAT_CHOICES['json']:
-                json_dump_data[team_name] = parse_for_json(bodies[0], team_name)
+                json_dump_data[team_name] = parse_for_json(bodies[1])
 
         print(NUMBER_OF_TEAMS_PROCESSED_MESSAGE.format(index + 1, len(links)))
 
@@ -332,7 +332,7 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
             json.dump(json_dump_data, text_file, indent=2)
 
 
-def parse_for_json(skaters, team_name):
+def parse_for_json(skaters):
     rows = skaters.find_all('tr')
     roster = []
 
