@@ -325,7 +325,7 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
             elif choice == FORMAT_CHOICES['json']:
                 json_dump_data[team_name] = parse_for_json(bodies[0], team_name)
 
-        print(NUMBER_OF_TEAMS_PROCESSED_MESSAGE.format(index+1, len(links)))
+        print(NUMBER_OF_TEAMS_PROCESSED_MESSAGE.format(index + 1, len(links)))
 
     if choice == FORMAT_CHOICES['json']:
         with open(POSITIONS_FILENAME, "w") as text_file:
@@ -367,8 +367,7 @@ def process_matchups(matchup_links, proxies):
 
     for link_index, link in enumerate(matchup_links):
         soup, proxy = parse_full_page(link, proxies, proxy)
-        table = scrape_from_page(soup, 'table', 'class',
-                                 MATCHUP_RESULT_CLASSES)[0]
+        table = scrape_from_page(soup, 'table', 'class', MATCHUP_RESULT_CLASSES)[0]
 
         if not headers:
             headers = table.find('thead').find_all('th')
