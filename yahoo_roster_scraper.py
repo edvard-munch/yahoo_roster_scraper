@@ -277,7 +277,9 @@ def string_to_num(value, delimeter):
     return float(re.sub(EMPTY_STRING_PATTERN, '0', value.split(delimeter)[0]))
 
 
-def process_links(links, proxies, choice, stats_page, schedule=None):
+def process_links(links, proxies, choice, stats_page, matchup_links=None, schedule=None):
+    team_totals_dict = {}
+
     if proxies:
         proxy = proxies_scraper.get_proxy(proxies)
 
@@ -307,9 +309,16 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
             headers = get_headers(soup)
             body = get_body(soup, schedule)
             table = map_headers_to_body(headers, body)
+
             sheet_name = verify_sheet_name(team_name)
             worksheet = workbook.add_worksheet(name=sheet_name)
             write_to_xlsx(table, worksheet)
+
+            team_totals = {}
+            for col in SCORING_COLUMNS:
+                if col in headers.keys():
+                    team_totals[col] = table[col][-1]  # last value is total
+            team_totals_dict[team_name.strip()] = team_totals
 
         else:
             bodies = soup.find_all('tbody')
@@ -332,6 +341,9 @@ def process_links(links, proxies, choice, stats_page, schedule=None):
         with open(POSITIONS_FILENAME, "w") as text_file:
             json.dump(json_dump_data, text_file, indent=2)
 
+    if choice == FORMAT_CHOICES['xlsx']:
+        process_matchups(matchup_links, team_totals_dict, proxies)
+
 
 def parse_for_json(skaters):
     rows = skaters.find_all('tr')
@@ -353,8 +365,10 @@ def parse_for_json(skaters):
     return roster
 
 
-def process_matchups(matchup_links, proxies):
+def process_matchups(matchup_links, team_totals_dict, proxies):
     worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
+
+    worksheet.set_column(*COLUMNS['second'], WIDE_COLUMN_WIDTH)
     worksheet.set_column(*COLUMNS['first'], WIDE_COLUMN_WIDTH)
     headers = []
     worksheet_row_number = 0
@@ -388,23 +402,37 @@ def process_matchups(matchup_links, proxies):
             if not number_of_cells:
                 number_of_cells = len(cells)
 
+            prognosis = {}
+
             for index, cell in enumerate(cells):
                 try:
                     name = cell.find(
                         'span', class_=TEAM_NAME_MATCHUP_RESULT_CLASSES).string
+                    prognosis = team_totals_dict.get(name, {})
 
                 except AttributeError:
                     name = cell.string
 
                 worksheet_rows[worksheet_row_number].append(name)
 
+            row_values = worksheet_rows[worksheet_row_number][1:len(prognosis)+1]
+            prognosis_values = list(prognosis.values())
+
+            for value_num, _ in enumerate(row_values):
+                try:
+                    value = float(row_values[value_num])
+                except ValueError:
+                    value = 0.0
+                except TypeError:
+                    value = 0.0
+
+                row_values[value_num] = value + prognosis_values[value_num]
+
+            worksheet_rows[worksheet_row_number][1:len(prognosis)+1] = row_values
+
             worksheet_row_number += 1
             worksheet_rows.append([])
-
-        print(
-            NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE.format(
-                link_index + 1, len(matchup_links)))
-
+        print(NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE.format(link_index + 1, len(matchup_links)))
         for cell in range(0, number_of_cells):
             worksheet_rows[worksheet_row_number].append(None)
 
@@ -569,8 +597,7 @@ if __name__ == '__main__':
         filename = get_filename()
         workbook = xlsxwriter.Workbook(filename)
 
-        process_matchups(matchup_links, proxies)
-        process_links(team_links, proxies, choice, AVG_STATS_PAGE, schedule)
+        process_links(team_links, proxies, choice, AVG_STATS_PAGE, matchup_links, schedule)
 
         workbook.close()
         open_file(filename)
