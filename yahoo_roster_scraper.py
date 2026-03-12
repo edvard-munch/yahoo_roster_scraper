@@ -11,6 +11,7 @@ import xlsxwriter
 import proxies_scraper
 import schedule_scraper
 import positions_scraper
+import write_to_google_sheet
 
 
 BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com/hockey/'
@@ -32,15 +33,16 @@ else:
     NAME_COLUMN = 0
 
 PROXY_CHOICES = {'Y': True, 'n': False}
-FORMAT_CHOICES = {'xlsx': '1', 'txt': '2', 'json': '3'}
+FORMAT_CHOICES = {'xlsx': '1', 'txt': '2', 'json': '3', 'google_sheets': '4'}
 
 PARSER = 'lxml'
 
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
 NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE = '{}/{} matchups ready'
 FORMAT_CHOICE_MESSAGE = ("Input 1 for full stats xls tables\n"
-                         "Input 2 for simple txt rosters\n"
-                         "Input 3 for positions in JSON file:\n")
+                          "Input 2 for simple txt rosters\n"
+                          "Input 3 for positions in JSON file\n"
+                          "Input 4 for writing positions to Google Sheets:\n")
 
 PROXIES_CHOICE_MESSAGE = 'Use proxies? Y/n:\n'
 INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
@@ -126,7 +128,6 @@ NHL_TEAM_NAMES_MAP = {
 }
 
 
-
 def scrape_from_page(soup, element_type, attr_type, attr_name):
     return soup.find_all(element_type, {attr_type: attr_name})
 
@@ -204,7 +205,6 @@ def get_body(soup, schedule):
             if (PLAYER_NAME_CLASS in cell.attrs['class']):
                 if i == 0:
                     cell_values.extend(([], []))
-
                 player_link = cell.find(class_=PLAYER_LINK_CLASSES)
                 if player_link:
                     name = player_link.string
@@ -332,14 +332,17 @@ def process_links(links, proxies, choice, stats_page, matchup_links=None, schedu
                 data = parse_clean_names(bodies[1:])
                 write_roster_to_txt(data, file_mode, team_name)
 
-            elif choice == FORMAT_CHOICES['json']:
+            elif choice == FORMAT_CHOICES['json'] or choice == FORMAT_CHOICES['google_sheets']:
                 json_dump_data[team_name] = parse_for_json(bodies[1])
 
         print(NUMBER_OF_TEAMS_PROCESSED_MESSAGE.format(index + 1, len(links)))
 
-    if choice == FORMAT_CHOICES['json']:
+    if choice == FORMAT_CHOICES['json'] or choice == FORMAT_CHOICES['google_sheets']:
         with open(POSITIONS_FILENAME, "w") as text_file:
             json.dump(json_dump_data, text_file, indent=2)
+
+    if choice == FORMAT_CHOICES['google_sheets']:
+        write_to_google_sheet.google(POSITIONS_FILENAME)
 
     if choice == FORMAT_CHOICES['xlsx']:
         process_matchups(matchup_links, team_totals_dict, proxies)
@@ -358,6 +361,7 @@ def parse_for_json(skaters):
                     name = player_link.string
                     span = cell.find(lambda tag: tag.get('class') == [TEAM_AND_POSITION_SPAN_CLASS])
                     position = span.string.split(' - ')[1]
+
                     if position != POSITION_CODES[1]:
                         pos_data = positions_scraper.get_positional_data([],
                                                                          name)
@@ -574,6 +578,7 @@ if __name__ == '__main__':
         proxies = []
 
     league_id = input(INPUT_LEAGUE_ID_MESSAGE)
+
     link = BASE_FANTASY_URL + league_id
     main_page_soup = parse_full_page(link, proxies)[0]
     league_scrapable = get_links(main_page_soup)
