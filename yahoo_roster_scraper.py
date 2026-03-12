@@ -99,7 +99,6 @@ NOT_PLAYING = ['IR', 'IR+', 'NA']
 PRESEASON = 1
 SEASON = 2
 
-ROSTERED_COLUMN_INDEX = 5
 WIDE_COLUMN_WIDTH = 20
 NUMBER_OF_COLUMNS = 15
 COLUMNS = {
@@ -274,7 +273,19 @@ def calculate_totals(column_values, games_per_week):
 
 
 def string_to_num(value, delimeter):
-    return float(re.sub(EMPTY_STRING_PATTERN, '0', value.split(delimeter)[0]))
+    if value is None:
+        return 0.0
+
+    text = str(value)
+    if delimeter is not None:
+        text = text.split(delimeter)[0]
+
+    text = re.sub(EMPTY_STRING_PATTERN, '0', text).strip()
+    match = re.search(r'-?\d+(?:\.\d+)?', text)
+    if not match:
+        return 0.0
+
+    return float(match.group(0))
 
 
 def process_links(links, proxies, choice, stats_page, matchup_links=None, schedule=None):
@@ -477,6 +488,7 @@ def parse_clean_names(bodies):
 
         txt = []
         for row_index, row in enumerate(rows):
+            rostered_found = False
             for cell_index, cell in enumerate(row):
                 if (PLAYER_NAME_CLASS in cell.attrs['class']):
                     player_link = cell.find(class_=PLAYER_LINK_CLASSES)
@@ -489,8 +501,13 @@ def parse_clean_names(bodies):
                     else:
                         txt[row_index].append(EMPTY_SPOT_STRING)
 
-                if cell_index == ROSTERED_COLUMN_INDEX:
-                    txt[row_index].append(cell.text)
+                cell_text = cell.get_text(strip=True)
+                if (not rostered_found) and ('%' in cell_text):
+                    txt[row_index].append(cell_text)
+                    rostered_found = True
+
+            if txt[row_index] and len(txt[row_index]) == 1:
+                txt[row_index].append('0%')
 
         # Rostered % strings converted to float and sorted
         res = sorted(txt, key=lambda x: string_to_num(x[1], '%'), reverse=True)
