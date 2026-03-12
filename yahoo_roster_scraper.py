@@ -296,7 +296,8 @@ def string_to_num(value, delimeter):
     return float(match.group(0))
 
 
-def process_links(links, proxies, choice, stats_page, matchup_links=None, schedule=None):
+def process_links(links, proxies, choice, stats_page, matchup_links=None, schedule=None,
+                  matchups_worksheet=None):
     team_totals_dict = {}
     missing_schedule_teams = set()
 
@@ -374,7 +375,7 @@ def process_links(links, proxies, choice, stats_page, matchup_links=None, schedu
                 for team in sorted(missing_schedule_teams)
             }
             print(f'Schedule teams not found: {mapped_preview}')
-        process_matchups(matchup_links, team_totals_dict, proxies)
+        process_matchups(matchup_links, team_totals_dict, proxies, matchups_worksheet)
 
 
 def parse_for_json(skaters):
@@ -398,8 +399,9 @@ def parse_for_json(skaters):
     return roster
 
 
-def process_matchups(matchup_links, team_totals_dict, proxies):
-    worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
+def process_matchups(matchup_links, team_totals_dict, proxies, worksheet=None):
+    if worksheet is None:
+        worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
 
     worksheet.set_column(*COLUMNS['second'], WIDE_COLUMN_WIDTH)
     worksheet.set_column(*COLUMNS['first'], WIDE_COLUMN_WIDTH)
@@ -636,8 +638,15 @@ if __name__ == '__main__':
 
         filename = get_filename()
         workbook = xlsxwriter.Workbook(filename)
+        matchups_worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
 
-        process_links(team_links, proxies, choice, AVG_STATS_PAGE, matchup_links, schedule)
+        process_links(team_links,
+                      proxies,
+                      choice,
+                      AVG_STATS_PAGE,
+                      matchup_links,
+                      schedule,
+                      matchups_worksheet)
 
         workbook.close()
         open_file(filename)
