@@ -16,6 +16,7 @@ PROXIE_CONNECTION_ATTEMPT_MESSAGE = 'Trying with IP: {}'
 PROXIES_LEFT_MESSAGE = 'Proxies left: {}'
 REQUEST_TIMEOUT = 2
 
+
 def scrape_proxies():
     response = requests.get(PROXIES_URL)
     soup = bs4.BeautifulSoup(response.content, PARSER)
@@ -48,7 +49,7 @@ def get_response(link, params, **proxie_data):
             web = requests.get(link, params=params,
                                proxies=proxie_data['proxy'], timeout=REQUEST_TIMEOUT)
 
-        except (requests.ConnectTimeout, OSError) as e:
+        except (requests.ConnectTimeout, OSError):
             print(CONNECTION_ERROR_MESSAGE)
             proxie_data['proxies'].remove(proxie_data['proxy'])
             print(PROXIES_LEFT_MESSAGE.format(len(proxie_data["proxies"])))

@@ -15,7 +15,7 @@ def get_soup(proxies, name):
 
     if proxies:
         proxy = proxies_scraper.get_proxy(proxies)
-        web = proxies_scraper.get_response(PLAYER_URL.format(name), params,  proxies=proxies, proxy=proxy)
+        web = proxies_scraper.get_response(PLAYER_URL.format(name), params, proxies=proxies, proxy=proxy)
 
         while not web:
             proxy = proxies_scraper.get_proxy(proxies)
