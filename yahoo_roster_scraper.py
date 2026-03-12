@@ -22,7 +22,7 @@ AVG_STATS_PAGE = {
 }
 
 if SEASON_JUST_STARTED:
-    AVG_STATS_PAGE['stat2'] = 'AS_2022'  # Calculate year programmatically
+    AVG_STATS_PAGE['stat2'] = 'AS_2025'  # Calculate year programmatically
 
 if SEASON_IN_PROGRESS:
     START_FROM = 1
@@ -60,7 +60,7 @@ TEAMS_IN_MATCHUP_CLASSES = 'Fz-sm.Phone-fz-xs.Ell'
 MATCHUP_RESULT_CLASSES = 'Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdr'
 TEAM_NAME_MATCHUP_RESULT_CLASSES = 'Grid-u Nowrap'
 HEADERS_CLASSES = 'Alt Last'
-TEAM_NAME_CLASSES = 'Navtarget F-reset No-case Fz-35 Fw-b team-name'
+TEAM_NAME_CLASSES = 'Navtarget No-pbot F-reset No-case Fz-35 Fw-b team-name'
 TEAM_NAME_STANDINGS_CLASSES = 'Grid-u F-reset Ell Mawpx-250'
 PLAYOFFS_HEADER = 'Championship Bracket'
 STANDINGS_PAGE_URL = 'https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand'
@@ -97,7 +97,7 @@ NOT_PLAYING = ['IR', 'IR+', 'NA']
 PRESEASON = 1
 SEASON = 2
 
-ROSTERED_COLUMN_INDEX = 7
+ROSTERED_COLUMN_INDEX = 5
 WIDE_COLUMN_WIDTH = 20
 NUMBER_OF_COLUMNS = 15
 COLUMNS = {
@@ -108,7 +108,7 @@ COLUMNS = {
 START_HEADERS = {'Spot': [], 'Forwards/Defensemen': [], 'Team': [], 'Pos': []}
 
 SCORING_COLUMNS = [
-    'G', 'A', '+/-', 'PIM', 'PPP', 'SHP', 'SOG', 'FW', 'HIT', 'BLK', 'GWG'
+    'G', 'A', 'P', '+/-', 'PIM', 'PPP', 'PPG', 'PPA', 'SHP', 'GWG', 'SOG', 'FW', 'HIT', 'BLK',
 ]
 COLUMNS_TO_DELETE = [
     'Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current', '% Started'
@@ -208,7 +208,7 @@ def get_body(soup, schedule):
                 player_link = cell.find(class_=PLAYER_LINK_CLASSES)
                 if player_link:
                     name = player_link.string
-                    span = cell.find(class_=TEAM_AND_POSITION_SPAN_CLASS)
+                    span = cell.find(lambda tag: tag.get('class') == [TEAM_AND_POSITION_SPAN_CLASS])
                     team, position = span.string.split(' - ')
 
                     cell_values[index].append(name)
@@ -344,7 +344,7 @@ def parse_for_json(skaters):
 
                 if player_link:
                     name = player_link.string
-                    span = cell.find(class_=TEAM_AND_POSITION_SPAN_CLASS)
+                    span = cell.find(lambda tag: tag.get('class') == [TEAM_AND_POSITION_SPAN_CLASS])
                     position = span.string.split(' - ')[1]
                     if position != POSITION_CODES[1]:
                         pos_data = positions_scraper.get_positional_data([],
