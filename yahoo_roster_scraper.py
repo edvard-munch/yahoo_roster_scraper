@@ -115,25 +115,21 @@ COLUMNS_TO_DELETE = [
     'Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current', '% Started'
 ]
 
-NHL_TEAM_NAMES_MAP = {
-    'MON': 'MTL',
-    'ANH': 'ANA',
-    'NJ': 'NJD',
-    'LA': 'LOS',
-    'CLS': 'CBJ',
-    'SJ': 'SJS',
-    'TB': 'TBL',
-    'WAS': 'WSH'
-}
-
 
 def scrape_from_page(soup, element_type, attr_type, attr_name):
     return soup.find_all(element_type, {attr_type: attr_name})
 
 
-def get_team_name(soup):
-    name_link = scrape_from_page(soup, 'span', 'class', re.compile(TEAM_NAME_CLASSES))[0]
-    return name_link.text.strip()[:30]
+def get_team_name(soup, fallback_name='Unknown Team'):
+    name_links = scrape_from_page(soup, 'span', 'class', re.compile(TEAM_NAME_CLASSES))
+    if name_links:
+        return name_links[0].text.strip()[:30]
+
+    title = soup.title.get_text(strip=True) if soup.title else None
+    if title:
+        return title.split('|')[0].strip()[:30]
+
+    return fallback_name[:30]
 
 
 def get_filename():
@@ -182,7 +178,7 @@ def get_headers(soup):
     return headers
 
 
-def get_body(soup, schedule):
+def get_body(soup, schedule, missing_schedule_teams=None):
     skater_rows = soup.find_all('tbody')[1].find_all('tr')
 
     cell_values = []
@@ -235,13 +231,25 @@ def get_body(soup, schedule):
         if empty:
             cell_values[index].append(0)
         else:
-            try:
-                cell_values[index].append(schedule[team.upper()][
-                    schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN])
-            except KeyError:
+            if not schedule:
+                cell_values[index].append(0)
+                continue
+
+            team_code = team.upper()
+            mapped_team_code = schedule_scraper.TEAM_CODE_ALIASES.get(team_code, team_code)
+
+            if team_code in schedule:
                 cell_values[index].append(
-                    schedule[NHL_TEAM_NAMES_MAP[team.upper()]][
-                        schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN])
+                    schedule[team_code][schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN]
+                )
+            elif mapped_team_code in schedule:
+                cell_values[index].append(
+                    schedule[mapped_team_code][schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN]
+                )
+            else:
+                if missing_schedule_teams is not None:
+                    missing_schedule_teams.add(team_code)
+                cell_values[index].append(0)
 
     return cell_values
 
@@ -290,6 +298,10 @@ def string_to_num(value, delimeter):
 
 def process_links(links, proxies, choice, stats_page, matchup_links=None, schedule=None):
     team_totals_dict = {}
+    missing_schedule_teams = set()
+
+    if choice == FORMAT_CHOICES['xlsx']:
+        schedule = schedule_scraper.apply_team_aliases(schedule or {})
 
     if proxies:
         proxy = proxies_scraper.get_proxy(proxies)
@@ -314,11 +326,11 @@ def process_links(links, proxies, choice, stats_page, matchup_links=None, schedu
 
         soup = bs4.BeautifulSoup(web.text, PARSER)
 
-        team_name = get_team_name(soup)
+        team_name = get_team_name(soup, fallback_name=f'Team {index + 1}')
 
         if choice == FORMAT_CHOICES['xlsx']:
             headers = get_headers(soup)
-            body = get_body(soup, schedule)
+            body = get_body(soup, schedule, missing_schedule_teams)
             table = map_headers_to_body(headers, body)
 
             sheet_name = verify_sheet_name(team_name)
@@ -356,6 +368,12 @@ def process_links(links, proxies, choice, stats_page, matchup_links=None, schedu
         write_to_google_sheet.google(POSITIONS_FILENAME)
 
     if choice == FORMAT_CHOICES['xlsx']:
+        if missing_schedule_teams:
+            mapped_preview = {
+                team: schedule_scraper.TEAM_CODE_ALIASES.get(team, team)
+                for team in sorted(missing_schedule_teams)
+            }
+            print(f'Schedule teams not found: {mapped_preview}')
         process_matchups(matchup_links, team_totals_dict, proxies)
 
 
