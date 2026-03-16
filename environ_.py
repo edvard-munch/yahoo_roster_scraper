@@ -1,15 +1,9 @@
-import os.path
-import environ
+from pathlib import Path
+import sys
 
 
-env = environ.Env(
-    # set casting, default value
-    DEBUG=(bool, False)
-)
+SRC_PATH = Path(__file__).resolve().parent / 'src'
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
 
-if os.path.exists('.env'):
-    environ.Env.read_env('.env')
-
-__all__ = [
-    'env',
-]
+from roster_scraper.services.environ_ import *  # noqa: F401,F403
