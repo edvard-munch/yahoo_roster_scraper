@@ -12,6 +12,8 @@ from roster_scraper.services import positions as positions_scraper
 from roster_scraper.services import proxies as proxies_scraper
 from roster_scraper.services import schedule as schedule_scraper
 from roster_scraper.services import write_to_google_sheet
+from roster_scraper.core import output as core_output
+from roster_scraper.core import parsing as core_parsing
 
 
 BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com/hockey/'
@@ -332,11 +334,11 @@ def process_links(links, proxies, choice, stats_page, matchup_links=None, schedu
         if choice == FORMAT_CHOICES['xlsx']:
             headers = get_headers(soup)
             body = get_body(soup, schedule, missing_schedule_teams)
-            table = map_headers_to_body(headers, body)
+            table = core_parsing.map_headers_to_body(headers, body, SEASON_IN_PROGRESS)
 
-            sheet_name = verify_sheet_name(team_name)
+            sheet_name = core_output.verify_sheet_name(team_name)
             worksheet = workbook.add_worksheet(name=sheet_name)
-            write_to_xlsx(table, worksheet)
+            core_output.write_to_xlsx(table, worksheet)
 
             team_totals = {}
             for col in SCORING_COLUMNS:
@@ -353,11 +355,11 @@ def process_links(links, proxies, choice, stats_page, matchup_links=None, schedu
                 file_mode = 'a'
 
             if choice == FORMAT_CHOICES['txt']:
-                data = parse_clean_names(bodies[1:])
-                write_roster_to_txt(data, file_mode, team_name)
+                data = core_parsing.parse_clean_names(bodies[1:])
+                core_output.write_roster_to_txt(data, file_mode, team_name, EMPTY_SPOT_STRING)
 
             elif choice == FORMAT_CHOICES['json'] or choice == FORMAT_CHOICES['google_sheets']:
-                json_dump_data[team_name] = parse_for_json(bodies[1])
+                json_dump_data[team_name] = core_parsing.parse_for_json(bodies[1])
 
         print(NUMBER_OF_TEAMS_PROCESSED_MESSAGE.format(index + 1, len(links)))
 
@@ -638,7 +640,7 @@ def main():
         schedule = schedule_scraper.get_schedule(proxies)
         matchup_links = league_scrapable[0]
 
-        filename = get_filename()
+        filename = core_output.get_filename()
         workbook = xlsxwriter.Workbook(filename)
         matchups_worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
 
@@ -651,7 +653,7 @@ def main():
                       matchups_worksheet)
 
         workbook.close()
-        open_file(filename)
+        core_output.open_file(filename)
 
     else:
         playoffs_in_progress = main_page_soup.find(string=re.compile(PLAYOFFS_HEADER))
@@ -661,9 +663,9 @@ def main():
         process_links(team_links, proxies, choice, RESEARCH_STATS_PAGE)
 
         if choice == FORMAT_CHOICES['txt']:
-            open_file(TXT_FILENAME)
+            core_output.open_file(TXT_FILENAME)
         elif choice == FORMAT_CHOICES['json']:
-            open_file(POSITIONS_FILENAME)
+            core_output.open_file(POSITIONS_FILENAME)
 
 if __name__ == '__main__':
     main()
