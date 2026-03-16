@@ -1,4 +1,5 @@
 /venv
+/.venv
 /reports
 /__pycache__
 links.txt

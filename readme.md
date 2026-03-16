@@ -1,1 +1,15 @@
-League is have to be publicly viewable, for you being able to scrape data
+League has to be publicly viewable to scrape data.
+
+## UV workflow
+
+Install dependencies from lockfile:
+
+```bash
+uv sync
+```
+
+Run scraper:
+
+```bash
+uv run python yahoo_roster_scraper.py
+```
