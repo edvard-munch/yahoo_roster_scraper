@@ -11,6 +11,8 @@ import xlsxwriter
 from roster_scraper.services import positions as positions_scraper
 from roster_scraper.services import proxies as proxies_scraper
 from roster_scraper.services import schedule as schedule_scraper
+from roster_scraper.services import matchups as matchups_service
+from roster_scraper.services import roster_workflow
 from roster_scraper.services import write_to_google_sheet
 from roster_scraper.core import output as core_output
 from roster_scraper.core import parsing as core_parsing
@@ -300,84 +302,33 @@ def string_to_num(value, delimeter):
 
 def process_links(links, proxies, choice, stats_page, matchup_links=None, schedule=None,
                   matchups_worksheet=None):
-    team_totals_dict = {}
-    missing_schedule_teams = set()
+    current_workbook = globals().get('workbook')
 
-    if choice == FORMAT_CHOICES['xlsx']:
-        schedule = schedule_scraper.apply_team_aliases(schedule or {})
-
-    if proxies:
-        proxy = proxies_scraper.get_proxy(proxies)
-
-    json_dump_data = {}
-    for index, link in enumerate(links):
-        if proxies:
-            web = proxies_scraper.get_response(link,
-                                               stats_page,
-                                               proxies=proxies,
-                                               proxy=proxy)
-
-            while not web:
-                proxy = proxies_scraper.get_proxy(proxies)
-                web = proxies_scraper.get_response(link,
-                                                   stats_page,
-                                                   proxies=proxies,
-                                                   proxy=proxy)
-
-        else:
-            web = proxies_scraper.get_response(link, stats_page)
-
-        soup = bs4.BeautifulSoup(web.text, PARSER)
-
-        team_name = get_team_name(soup, fallback_name=f'Team {index + 1}')
-
-        if choice == FORMAT_CHOICES['xlsx']:
-            headers = get_headers(soup)
-            body = get_body(soup, schedule, missing_schedule_teams)
-            table = core_parsing.map_headers_to_body(headers, body, SEASON_IN_PROGRESS)
-
-            sheet_name = core_output.verify_sheet_name(team_name)
-            worksheet = workbook.add_worksheet(name=sheet_name)
-            core_output.write_to_xlsx(table, worksheet)
-
-            team_totals = {}
-            for col in SCORING_COLUMNS:
-                if col in headers.keys():
-                    team_totals[col] = table[col][-1]  # last value is total
-            team_totals_dict[team_name.strip()] = team_totals
-
-        else:
-            bodies = soup.find_all('tbody')
-
-            if index == 0:
-                file_mode = 'w'
-            else:
-                file_mode = 'a'
-
-            if choice == FORMAT_CHOICES['txt']:
-                data = core_parsing.parse_clean_names(bodies[1:])
-                core_output.write_roster_to_txt(data, file_mode, team_name, EMPTY_SPOT_STRING)
-
-            elif choice == FORMAT_CHOICES['json'] or choice == FORMAT_CHOICES['google_sheets']:
-                json_dump_data[team_name] = core_parsing.parse_for_json(bodies[1])
-
-        print(NUMBER_OF_TEAMS_PROCESSED_MESSAGE.format(index + 1, len(links)))
-
-    if choice == FORMAT_CHOICES['json'] or choice == FORMAT_CHOICES['google_sheets']:
-        with open(POSITIONS_FILENAME, "w") as text_file:
-            json.dump(json_dump_data, text_file, indent=2)
-
-    if choice == FORMAT_CHOICES['google_sheets']:
-        write_to_google_sheet.google(POSITIONS_FILENAME)
-
-    if choice == FORMAT_CHOICES['xlsx']:
-        if missing_schedule_teams:
-            mapped_preview = {
-                team: schedule_scraper.TEAM_CODE_ALIASES.get(team, team)
-                for team in sorted(missing_schedule_teams)
-            }
-            print(f'Schedule teams not found: {mapped_preview}')
-        process_matchups(matchup_links, team_totals_dict, proxies, matchups_worksheet)
+    return roster_workflow.process_links(
+        links,
+        proxies,
+        choice,
+        stats_page,
+        format_choices=FORMAT_CHOICES,
+        parser=PARSER,
+        proxies_scraper=proxies_scraper,
+        schedule_scraper=schedule_scraper,
+        core_parsing=core_parsing,
+        core_output=core_output,
+        write_to_google_sheet=write_to_google_sheet,
+        workbook=current_workbook,
+        scoring_columns=SCORING_COLUMNS,
+        empty_spot_string=EMPTY_SPOT_STRING,
+        number_of_teams_processed_message=NUMBER_OF_TEAMS_PROCESSED_MESSAGE,
+        positions_filename=POSITIONS_FILENAME,
+        matchup_links=matchup_links,
+        schedule=schedule,
+        matchups_worksheet=matchups_worksheet,
+        get_team_name=get_team_name,
+        get_headers=get_headers,
+        get_body=get_body,
+        process_matchups=process_matchups,
+    )
 
 
 def parse_for_json(skaters):
@@ -405,79 +356,21 @@ def process_matchups(matchup_links, team_totals_dict, proxies, worksheet=None):
     if worksheet is None:
         worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
 
-    worksheet.set_column(*COLUMNS['second'], WIDE_COLUMN_WIDTH)
-    worksheet.set_column(*COLUMNS['first'], WIDE_COLUMN_WIDTH)
-    headers = []
-    worksheet_row_number = 0
-    worksheet_rows = []
-    worksheet_rows.append([])
-
-    if proxies:
-        proxy = proxies_scraper.get_proxy(proxies)
-    else:
-        proxy = None
-
-    for link_index, link in enumerate(matchup_links):
-        soup, proxy = parse_full_page(link + MATCHUP_TOTALS_PARAMETER, proxies, proxy)
-        table = scrape_from_page(soup, 'table', 'class', MATCHUP_RESULT_CLASSES)[0]
-
-        if not headers:
-            headers = table.find('thead').find_all('th')
-
-            for header in headers:
-                worksheet_rows[worksheet_row_number].append(header.string)
-
-            worksheet_row_number += 1
-            worksheet_rows.append([])
-
-        rows = table.find('tbody').find_all('tr')
-        number_of_cells = 0
-
-        for row in rows:
-            cells = row.find_all('td')
-
-            if not number_of_cells:
-                number_of_cells = len(cells)
-
-            prognosis = {}
-
-            for index, cell in enumerate(cells):
-                try:
-                    name = cell.find(
-                        'span', class_=TEAM_NAME_MATCHUP_RESULT_CLASSES).string
-                    prognosis = team_totals_dict.get(name, {})
-
-                except AttributeError:
-                    name = cell.string
-
-                worksheet_rows[worksheet_row_number].append(name)
-
-            row_values = worksheet_rows[worksheet_row_number][1:len(prognosis)+1]
-            prognosis_values = list(prognosis.values())
-
-            for value_num, _ in enumerate(row_values):
-                try:
-                    value = float(row_values[value_num])
-                except ValueError:
-                    value = 0.0
-                except TypeError:
-                    value = 0.0
-
-                row_values[value_num] = value + prognosis_values[value_num]
-
-            worksheet_rows[worksheet_row_number][1:len(prognosis)+1] = row_values
-
-            worksheet_row_number += 1
-            worksheet_rows.append([])
-        print(NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE.format(link_index + 1, len(matchup_links)))
-        for cell in range(0, number_of_cells):
-            worksheet_rows[worksheet_row_number].append(None)
-
-        worksheet_row_number += 1
-        worksheet_rows.append([])
-
-    for index, row in enumerate(worksheet_rows):
-        worksheet.write_row(index, 0, row)
+    return matchups_service.process_matchups(
+        matchup_links,
+        team_totals_dict,
+        proxies,
+        worksheet,
+        columns=COLUMNS,
+        wide_column_width=WIDE_COLUMN_WIDTH,
+        number_of_matchups_processed_message=NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE,
+        matchup_totals_parameter=MATCHUP_TOTALS_PARAMETER,
+        matchup_result_classes=MATCHUP_RESULT_CLASSES,
+        team_name_matchup_result_classes=TEAM_NAME_MATCHUP_RESULT_CLASSES,
+        proxies_scraper=proxies_scraper,
+        parse_full_page=parse_full_page,
+        scrape_from_page=scrape_from_page,
+    )
 
 
 def parse_full_page(link, proxies, proxy=None, params={}):
