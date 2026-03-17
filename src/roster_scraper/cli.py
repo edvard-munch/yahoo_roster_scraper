@@ -444,6 +444,28 @@ def get_links_from_standings(league_id, proxies):
     return [team_link.get('href') for team_link in teams]
 
 
+def build_roster_context(workbook, matchups_context):
+    return roster_workflow.RosterWorkflowContext(
+        format_choices=FORMAT_CHOICES,
+        parser=PARSER,
+        proxies_scraper=proxies_scraper,
+        schedule_scraper=schedule_scraper,
+        core_parsing=core_parsing,
+        core_output=core_output,
+        write_to_google_sheet=write_to_google_sheet,
+        workbook=workbook,
+        scoring_columns=SCORING_COLUMNS,
+        empty_spot_string=EMPTY_SPOT_STRING,
+        number_of_teams_processed_message=NUMBER_OF_TEAMS_PROCESSED_MESSAGE,
+        positions_filename=POSITIONS_FILENAME,
+        get_team_name=get_team_name,
+        get_headers=get_headers,
+        get_body=get_body,
+        matchups_service=matchups_service,
+        matchups_context=matchups_context,
+    )
+
+
 def main():
     global workbook
 
@@ -497,25 +519,7 @@ def main():
         workbook = xlsxwriter.Workbook(filename)
         matchups_worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
 
-        roster_context = roster_workflow.RosterWorkflowContext(
-            format_choices=FORMAT_CHOICES,
-            parser=PARSER,
-            proxies_scraper=proxies_scraper,
-            schedule_scraper=schedule_scraper,
-            core_parsing=core_parsing,
-            core_output=core_output,
-            write_to_google_sheet=write_to_google_sheet,
-            workbook=workbook,
-            scoring_columns=SCORING_COLUMNS,
-            empty_spot_string=EMPTY_SPOT_STRING,
-            number_of_teams_processed_message=NUMBER_OF_TEAMS_PROCESSED_MESSAGE,
-            positions_filename=POSITIONS_FILENAME,
-            get_team_name=get_team_name,
-            get_headers=get_headers,
-            get_body=get_body,
-            matchups_service=matchups_service,
-            matchups_context=matchups_context,
-        )
+        roster_context = build_roster_context(workbook, matchups_context)
 
         roster_workflow.process_links(
             roster_context,
@@ -536,25 +540,7 @@ def main():
         if playoffs_in_progress:
             team_links = get_links_from_standings(league_id, proxies)
 
-        roster_context = roster_workflow.RosterWorkflowContext(
-            format_choices=FORMAT_CHOICES,
-            parser=PARSER,
-            proxies_scraper=proxies_scraper,
-            schedule_scraper=schedule_scraper,
-            core_parsing=core_parsing,
-            core_output=core_output,
-            write_to_google_sheet=write_to_google_sheet,
-            workbook=None,
-            scoring_columns=SCORING_COLUMNS,
-            empty_spot_string=EMPTY_SPOT_STRING,
-            number_of_teams_processed_message=NUMBER_OF_TEAMS_PROCESSED_MESSAGE,
-            positions_filename=POSITIONS_FILENAME,
-            get_team_name=get_team_name,
-            get_headers=get_headers,
-            get_body=get_body,
-            matchups_service=matchups_service,
-            matchups_context=matchups_context,
-        )
+        roster_context = build_roster_context(None, matchups_context)
 
         roster_workflow.process_links(
             roster_context,
