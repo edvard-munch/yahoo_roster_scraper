@@ -20,7 +20,8 @@ class RosterWorkflowContext:
     get_team_name: object
     get_headers: object
     get_body: object
-    process_matchups: object
+    matchups_service: object
+    matchups_context: object
 
 
 def process_links(context,
@@ -46,7 +47,8 @@ def process_links(context,
     get_team_name = context.get_team_name
     get_headers = context.get_headers
     get_body = context.get_body
-    process_matchups = context.process_matchups
+    matchups_service = context.matchups_service
+    matchups_context = context.matchups_context
     team_totals_dict = {}
     missing_schedule_teams = set()
 
@@ -126,4 +128,10 @@ def process_links(context,
             }
             print(f'Schedule teams not found: {mapped_preview}')
 
-        process_matchups(matchup_links, team_totals_dict, proxies, matchups_worksheet)
+        matchups_service.process_matchups(
+            matchups_context,
+            matchup_links,
+            team_totals_dict,
+            proxies,
+            matchups_worksheet,
+        )

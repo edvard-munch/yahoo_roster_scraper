@@ -300,40 +300,6 @@ def string_to_num(value, delimeter):
     return float(match.group(0))
 
 
-def process_links(links, proxies, choice, stats_page, matchup_links=None, schedule=None,
-                  matchups_worksheet=None):
-    current_workbook = globals().get('workbook')
-    context = roster_workflow.RosterWorkflowContext(
-        format_choices=FORMAT_CHOICES,
-        parser=PARSER,
-        proxies_scraper=proxies_scraper,
-        schedule_scraper=schedule_scraper,
-        core_parsing=core_parsing,
-        core_output=core_output,
-        write_to_google_sheet=write_to_google_sheet,
-        workbook=current_workbook,
-        scoring_columns=SCORING_COLUMNS,
-        empty_spot_string=EMPTY_SPOT_STRING,
-        number_of_teams_processed_message=NUMBER_OF_TEAMS_PROCESSED_MESSAGE,
-        positions_filename=POSITIONS_FILENAME,
-        get_team_name=get_team_name,
-        get_headers=get_headers,
-        get_body=get_body,
-        process_matchups=process_matchups,
-    )
-
-    return roster_workflow.process_links(
-        context,
-        links,
-        proxies,
-        choice,
-        stats_page,
-        matchup_links=matchup_links,
-        schedule=schedule,
-        matchups_worksheet=matchups_worksheet,
-    )
-
-
 def parse_for_json(skaters):
     rows = skaters.find_all('tr')
     roster = []
@@ -353,30 +319,6 @@ def parse_for_json(skaters):
                                                                          name)
                         roster.append(pos_data)
     return roster
-
-
-def process_matchups(matchup_links, team_totals_dict, proxies, worksheet=None):
-    if worksheet is None:
-        worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
-    context = matchups_service.MatchupsContext(
-        columns=COLUMNS,
-        wide_column_width=WIDE_COLUMN_WIDTH,
-        number_of_matchups_processed_message=NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE,
-        matchup_totals_parameter=MATCHUP_TOTALS_PARAMETER,
-        matchup_result_classes=MATCHUP_RESULT_CLASSES,
-        team_name_matchup_result_classes=TEAM_NAME_MATCHUP_RESULT_CLASSES,
-        proxies_scraper=proxies_scraper,
-        parse_full_page=parse_full_page,
-        scrape_from_page=scrape_from_page,
-    )
-
-    return matchups_service.process_matchups(
-        context,
-        matchup_links,
-        team_totals_dict,
-        proxies,
-        worksheet,
-    )
 
 
 def parse_full_page(link, proxies, proxy=None, params={}):
@@ -535,6 +477,18 @@ def main():
     while not choice:
         choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
 
+    matchups_context = matchups_service.MatchupsContext(
+        columns=COLUMNS,
+        wide_column_width=WIDE_COLUMN_WIDTH,
+        number_of_matchups_processed_message=NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE,
+        matchup_totals_parameter=MATCHUP_TOTALS_PARAMETER,
+        matchup_result_classes=MATCHUP_RESULT_CLASSES,
+        team_name_matchup_result_classes=TEAM_NAME_MATCHUP_RESULT_CLASSES,
+        proxies_scraper=proxies_scraper,
+        parse_full_page=parse_full_page,
+        scrape_from_page=scrape_from_page,
+    )
+
     if choice == FORMAT_CHOICES['xlsx']:
         schedule = schedule_scraper.get_schedule(proxies)
         matchup_links = league_scrapable[0]
@@ -543,13 +497,36 @@ def main():
         workbook = xlsxwriter.Workbook(filename)
         matchups_worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
 
-        process_links(team_links,
-                      proxies,
-                      choice,
-                      AVG_STATS_PAGE,
-                      matchup_links,
-                      schedule,
-                      matchups_worksheet)
+        roster_context = roster_workflow.RosterWorkflowContext(
+            format_choices=FORMAT_CHOICES,
+            parser=PARSER,
+            proxies_scraper=proxies_scraper,
+            schedule_scraper=schedule_scraper,
+            core_parsing=core_parsing,
+            core_output=core_output,
+            write_to_google_sheet=write_to_google_sheet,
+            workbook=workbook,
+            scoring_columns=SCORING_COLUMNS,
+            empty_spot_string=EMPTY_SPOT_STRING,
+            number_of_teams_processed_message=NUMBER_OF_TEAMS_PROCESSED_MESSAGE,
+            positions_filename=POSITIONS_FILENAME,
+            get_team_name=get_team_name,
+            get_headers=get_headers,
+            get_body=get_body,
+            matchups_service=matchups_service,
+            matchups_context=matchups_context,
+        )
+
+        roster_workflow.process_links(
+            roster_context,
+            team_links,
+            proxies,
+            choice,
+            AVG_STATS_PAGE,
+            matchup_links,
+            schedule,
+            matchups_worksheet,
+        )
 
         workbook.close()
         core_output.open_file(filename)
@@ -559,7 +536,33 @@ def main():
         if playoffs_in_progress:
             team_links = get_links_from_standings(league_id, proxies)
 
-        process_links(team_links, proxies, choice, RESEARCH_STATS_PAGE)
+        roster_context = roster_workflow.RosterWorkflowContext(
+            format_choices=FORMAT_CHOICES,
+            parser=PARSER,
+            proxies_scraper=proxies_scraper,
+            schedule_scraper=schedule_scraper,
+            core_parsing=core_parsing,
+            core_output=core_output,
+            write_to_google_sheet=write_to_google_sheet,
+            workbook=None,
+            scoring_columns=SCORING_COLUMNS,
+            empty_spot_string=EMPTY_SPOT_STRING,
+            number_of_teams_processed_message=NUMBER_OF_TEAMS_PROCESSED_MESSAGE,
+            positions_filename=POSITIONS_FILENAME,
+            get_team_name=get_team_name,
+            get_headers=get_headers,
+            get_body=get_body,
+            matchups_service=matchups_service,
+            matchups_context=matchups_context,
+        )
+
+        roster_workflow.process_links(
+            roster_context,
+            team_links,
+            proxies,
+            choice,
+            RESEARCH_STATS_PAGE,
+        )
 
         if choice == FORMAT_CHOICES['txt']:
             core_output.open_file(TXT_FILENAME)
