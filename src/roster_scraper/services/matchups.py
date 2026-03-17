@@ -1,17 +1,33 @@
-def process_matchups(matchup_links,
+from dataclasses import dataclass
+
+
+@dataclass
+class MatchupsContext:
+    columns: dict
+    wide_column_width: int
+    number_of_matchups_processed_message: str
+    matchup_totals_parameter: str
+    matchup_result_classes: str
+    team_name_matchup_result_classes: str
+    proxies_scraper: object
+    parse_full_page: object
+    scrape_from_page: object
+
+
+def process_matchups(context,
+                     matchup_links,
                      team_totals_dict,
                      proxies,
-                     worksheet,
-                     *,
-                     columns,
-                     wide_column_width,
-                     number_of_matchups_processed_message,
-                     matchup_totals_parameter,
-                     matchup_result_classes,
-                     team_name_matchup_result_classes,
-                     proxies_scraper,
-                     parse_full_page,
-                     scrape_from_page):
+                     worksheet):
+    columns = context.columns
+    wide_column_width = context.wide_column_width
+    number_of_matchups_processed_message = context.number_of_matchups_processed_message
+    matchup_totals_parameter = context.matchup_totals_parameter
+    matchup_result_classes = context.matchup_result_classes
+    team_name_matchup_result_classes = context.team_name_matchup_result_classes
+    proxies_scraper = context.proxies_scraper
+    parse_full_page = context.parse_full_page
+    scrape_from_page = context.scrape_from_page
     worksheet.set_column(*columns['second'], wide_column_width)
     worksheet.set_column(*columns['first'], wide_column_width)
     headers = []

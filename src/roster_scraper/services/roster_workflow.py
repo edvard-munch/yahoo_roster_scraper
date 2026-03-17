@@ -1,31 +1,52 @@
 import bs4
 import json
+from dataclasses import dataclass
 
 
-def process_links(links,
+@dataclass
+class RosterWorkflowContext:
+    format_choices: dict
+    parser: str
+    proxies_scraper: object
+    schedule_scraper: object
+    core_parsing: object
+    core_output: object
+    write_to_google_sheet: object
+    workbook: object
+    scoring_columns: list
+    empty_spot_string: str
+    number_of_teams_processed_message: str
+    positions_filename: str
+    get_team_name: object
+    get_headers: object
+    get_body: object
+    process_matchups: object
+
+
+def process_links(context,
+                  links,
                   proxies,
                   choice,
                   stats_page,
-                  *,
-                  format_choices,
-                  parser,
-                  proxies_scraper,
-                  schedule_scraper,
-                  core_parsing,
-                  core_output,
-                  write_to_google_sheet,
-                  workbook,
-                  scoring_columns,
-                  empty_spot_string,
-                  number_of_teams_processed_message,
-                  positions_filename,
                   matchup_links=None,
                   schedule=None,
-                  matchups_worksheet=None,
-                  get_team_name=None,
-                  get_headers=None,
-                  get_body=None,
-                  process_matchups=None):
+                  matchups_worksheet=None):
+    format_choices = context.format_choices
+    parser = context.parser
+    proxies_scraper = context.proxies_scraper
+    schedule_scraper = context.schedule_scraper
+    core_parsing = context.core_parsing
+    core_output = context.core_output
+    write_to_google_sheet = context.write_to_google_sheet
+    workbook = context.workbook
+    scoring_columns = context.scoring_columns
+    empty_spot_string = context.empty_spot_string
+    number_of_teams_processed_message = context.number_of_teams_processed_message
+    positions_filename = context.positions_filename
+    get_team_name = context.get_team_name
+    get_headers = context.get_headers
+    get_body = context.get_body
+    process_matchups = context.process_matchups
     team_totals_dict = {}
     missing_schedule_teams = set()
 

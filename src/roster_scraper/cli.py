@@ -303,12 +303,7 @@ def string_to_num(value, delimeter):
 def process_links(links, proxies, choice, stats_page, matchup_links=None, schedule=None,
                   matchups_worksheet=None):
     current_workbook = globals().get('workbook')
-
-    return roster_workflow.process_links(
-        links,
-        proxies,
-        choice,
-        stats_page,
+    context = roster_workflow.RosterWorkflowContext(
         format_choices=FORMAT_CHOICES,
         parser=PARSER,
         proxies_scraper=proxies_scraper,
@@ -321,13 +316,21 @@ def process_links(links, proxies, choice, stats_page, matchup_links=None, schedu
         empty_spot_string=EMPTY_SPOT_STRING,
         number_of_teams_processed_message=NUMBER_OF_TEAMS_PROCESSED_MESSAGE,
         positions_filename=POSITIONS_FILENAME,
-        matchup_links=matchup_links,
-        schedule=schedule,
-        matchups_worksheet=matchups_worksheet,
         get_team_name=get_team_name,
         get_headers=get_headers,
         get_body=get_body,
         process_matchups=process_matchups,
+    )
+
+    return roster_workflow.process_links(
+        context,
+        links,
+        proxies,
+        choice,
+        stats_page,
+        matchup_links=matchup_links,
+        schedule=schedule,
+        matchups_worksheet=matchups_worksheet,
     )
 
 
@@ -355,12 +358,7 @@ def parse_for_json(skaters):
 def process_matchups(matchup_links, team_totals_dict, proxies, worksheet=None):
     if worksheet is None:
         worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
-
-    return matchups_service.process_matchups(
-        matchup_links,
-        team_totals_dict,
-        proxies,
-        worksheet,
+    context = matchups_service.MatchupsContext(
         columns=COLUMNS,
         wide_column_width=WIDE_COLUMN_WIDTH,
         number_of_matchups_processed_message=NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE,
@@ -370,6 +368,14 @@ def process_matchups(matchup_links, team_totals_dict, proxies, worksheet=None):
         proxies_scraper=proxies_scraper,
         parse_full_page=parse_full_page,
         scrape_from_page=scrape_from_page,
+    )
+
+    return matchups_service.process_matchups(
+        context,
+        matchup_links,
+        team_totals_dict,
+        proxies,
+        worksheet,
     )
 
 
