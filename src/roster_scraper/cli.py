@@ -325,8 +325,6 @@ def build_roster_context(workbook, matchups_context):
 
 
 def main():
-    global workbook
-
     use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
 
     while not use_proxies_choice:
