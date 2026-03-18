@@ -1,24 +1,28 @@
 from dataclasses import dataclass
+from collections.abc import Callable
+from typing import Any
+
+import bs4
 
 
 @dataclass
 class MatchupsContext:
-    columns: dict
+    columns: dict[str, tuple[int, int]]
     wide_column_width: int
     number_of_matchups_processed_message: str
     matchup_totals_parameter: str
     matchup_result_classes: str
     team_name_matchup_result_classes: str
-    proxies_scraper: object
-    parse_full_page: object
-    scrape_from_page: object
+    proxies_scraper: Any
+    parse_full_page: Callable[..., tuple[bs4.BeautifulSoup, Any]]
+    scrape_from_page: Callable[..., list[Any]]
 
 
-def process_matchups(context,
+def process_matchups(context: MatchupsContext,
                      matchup_links,
                      team_totals_dict,
                      proxies,
-                     worksheet):
+                     worksheet) -> None:
     columns = context.columns
     wide_column_width = context.wide_column_width
     number_of_matchups_processed_message = context.number_of_matchups_processed_message

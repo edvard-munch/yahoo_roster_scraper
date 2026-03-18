@@ -1,37 +1,39 @@
 import bs4
 import json
 from dataclasses import dataclass
+from collections.abc import Callable
+from typing import Any
 
 
 @dataclass
 class RosterWorkflowContext:
-    format_choices: dict
+    format_choices: dict[str, str]
     parser: str
-    proxies_scraper: object
-    schedule_scraper: object
-    core_parsing: object
-    core_output: object
-    write_to_google_sheet: object
-    workbook: object
-    scoring_columns: list
+    proxies_scraper: Any
+    schedule_scraper: Any
+    core_parsing: Any
+    core_output: Any
+    write_to_google_sheet: Any
+    workbook: Any
+    scoring_columns: list[str]
     empty_spot_string: str
     number_of_teams_processed_message: str
     positions_filename: str
-    get_team_name: object
-    get_headers: object
-    get_body: object
-    matchups_service: object
-    matchups_context: object
+    get_team_name: Callable[..., str]
+    get_headers: Callable[..., dict[str, list[Any]]]
+    get_body: Callable[..., list[list[Any]]]
+    matchups_service: Any
+    matchups_context: Any
 
 
-def process_links(context,
+def process_links(context: RosterWorkflowContext,
                   links,
                   proxies,
                   choice,
                   stats_page,
                   matchup_links=None,
                   schedule=None,
-                  matchups_worksheet=None):
+                  matchups_worksheet=None) -> None:
     format_choices = context.format_choices
     parser = context.parser
     proxies_scraper = context.proxies_scraper
@@ -49,16 +51,18 @@ def process_links(context,
     get_body = context.get_body
     matchups_service = context.matchups_service
     matchups_context = context.matchups_context
-    team_totals_dict = {}
-    missing_schedule_teams = set()
+    team_totals_dict: dict[str, dict[str, float]] = {}
+    missing_schedule_teams: set[str] = set()
 
     if choice == format_choices['xlsx']:
         schedule = schedule_scraper.apply_team_aliases(schedule or {})
 
+    proxy = None
+
     if proxies:
         proxy = proxies_scraper.get_proxy(proxies)
 
-    json_dump_data = {}
+    json_dump_data: dict[str, Any] = {}
     for index, link in enumerate(links):
         if proxies:
             web = proxies_scraper.get_response(link,
