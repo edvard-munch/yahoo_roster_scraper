@@ -136,29 +136,6 @@ def get_team_name(soup, fallback_name='Unknown Team'):
     return fallback_name[:30]
 
 
-def get_filename():
-    now = datetime.datetime.now()
-    timestamp = datetime.datetime.strftime(now, TIMESTAMP_FORMAT)
-    filename = XLSX_FILENAME_TEMPLATE.format(timestamp)
-    return filename
-
-
-def open_file(filename):
-    if sys.platform == PLATFORMS['Windows']:
-        os.startfile(filename)
-    else:
-        if sys.platform == PLATFORMS['Mac_OS']:
-            opener = FILE_OPENERS['Mac_OS']
-        else:
-            opener = FILE_OPENERS['Linux']
-
-        subprocess.call([opener, filename])
-
-
-def verify_sheet_name(team_name):
-    return re.sub(INVALID_EXCEL_CHARACTERS_PATTERN, '', team_name)
-
-
 def get_headers(soup):
     header_row = soup.find('tr', class_=HEADERS_CLASSES)
     headers = {**START_HEADERS, **{}}
@@ -258,69 +235,6 @@ def get_body(soup, schedule, missing_schedule_teams=None):
     return cell_values
 
 
-def map_headers_to_body(headers, body):
-    headers_keys = headers.copy().keys()
-    games_per_week_column = body[-1]
-
-    for index, key in enumerate(headers_keys):
-        headers[key] = body[index]
-
-        if (SEASON_IN_PROGRESS) and (key in SCORING_COLUMNS):
-            headers[key].append(
-                calculate_totals(headers[key], games_per_week_column))
-
-        if key in COLUMNS_TO_DELETE:
-            headers.pop(key, None)
-
-    return headers
-
-
-def calculate_totals(column_values, games_per_week):
-    total = 0
-
-    for index, value in enumerate(column_values):
-        total += string_to_num(value, None) * games_per_week[index]
-
-    return total
-
-
-def string_to_num(value, delimeter):
-    if value is None:
-        return 0.0
-
-    text = str(value)
-    if delimeter is not None:
-        text = text.split(delimeter)[0]
-
-    text = re.sub(EMPTY_STRING_PATTERN, '0', text).strip()
-    match = re.search(r'-?\d+(?:\.\d+)?', text)
-    if not match:
-        return 0.0
-
-    return float(match.group(0))
-
-
-def parse_for_json(skaters):
-    rows = skaters.find_all('tr')
-    roster = []
-
-    for row_index, row in enumerate(rows):
-        for cell_index, cell in enumerate(row):
-            if (PLAYER_NAME_CLASS in cell.attrs['class']):
-                player_link = cell.find(class_=PLAYER_LINK_CLASSES)
-
-                if player_link:
-                    name = player_link.string
-                    span = cell.find(lambda tag: tag.get('class') == [TEAM_AND_POSITION_SPAN_CLASS])
-                    position = span.string.split(' - ')[1]
-
-                    if position != POSITION_CODES[1]:
-                        pos_data = positions_scraper.get_positional_data([],
-                                                                         name)
-                        roster.append(pos_data)
-    return roster
-
-
 def parse_full_page(link, proxies, proxy=None, params={}):
     if proxies:
         if not proxy:
@@ -342,55 +256,6 @@ def parse_full_page(link, proxies, proxy=None, params={}):
         web = proxies_scraper.get_response(link, params)
 
     return (bs4.BeautifulSoup(web.text, PARSER), proxy)
-
-
-def parse_clean_names(bodies):
-    full_roster = []
-    for body in bodies:
-        rows = body.find_all('tr')
-
-        txt = []
-        for row_index, row in enumerate(rows):
-            rostered_found = False
-            for cell_index, cell in enumerate(row):
-                if (PLAYER_NAME_CLASS in cell.attrs['class']):
-                    player_link = cell.find(class_=PLAYER_LINK_CLASSES)
-                    txt.append([])
-
-                    if player_link:
-                        name = player_link.string
-                        txt[row_index].append(name)
-
-                    else:
-                        txt[row_index].append(EMPTY_SPOT_STRING)
-
-                cell_text = cell.get_text(strip=True)
-                if (not rostered_found) and ('%' in cell_text):
-                    txt[row_index].append(cell_text)
-                    rostered_found = True
-
-            if txt[row_index] and len(txt[row_index]) == 1:
-                txt[row_index].append('0%')
-
-        # Rostered % strings converted to float and sorted
-        res = sorted(txt, key=lambda x: string_to_num(x[1], '%'), reverse=True)
-        zipped = list(zip(*res))
-        full_roster.append(zipped[0])
-
-    return full_roster
-
-
-def write_roster_to_txt(full_roster, file_mode, team_name):
-    with open(TXT_FILENAME, file_mode) as text_file:
-        text_file.write(TEAM_NAME_HEADER.format(team_name))
-        text_file.write('\n\n')
-
-        for roster in full_roster:
-            text_file.write("\n".join(
-                str(item) for item in roster if item != EMPTY_SPOT_STRING))
-            text_file.write('\n\n')
-
-        text_file.write('\n')
 
 
 def validate_input(message, choices):
@@ -426,16 +291,6 @@ def get_links(soup, league_link):
     else:
         print(LEAGUE_ID_INCORRECT_MESSAGE)
         return None
-
-
-def write_to_xlsx(table, worksheet):
-    col_num = 0
-    worksheet.set_column(*COLUMNS['second'], WIDE_COLUMN_WIDTH)
-
-    for key, value in table.items():
-        worksheet.write(0, col_num, key)
-        worksheet.write_column(1, col_num, value)
-        col_num += 1
 
 
 def get_links_from_standings(league_id, proxies):
