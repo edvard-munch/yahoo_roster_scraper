@@ -235,7 +235,10 @@ def get_body(soup, schedule, missing_schedule_teams=None):
     return cell_values
 
 
-def parse_full_page(link, proxies, proxy=None, params={}):
+def parse_full_page(link, proxies, proxy=None, params=None):
+    if params is None:
+        params = {}
+
     if proxies:
         if not proxy:
             proxy = proxies_scraper.get_proxy(proxies)
