@@ -16,6 +16,10 @@ CONNECTION_ERROR_MESSAGE = 'Connnection Error. Retry'
 PROXIE_CONNECTION_ATTEMPT_MESSAGE = 'Trying with IP: {}'
 PROXIES_LEFT_MESSAGE = 'Proxies left: {}'
 REQUEST_TIMEOUT = 2
+DEFAULT_PROXY_MAX_RETRIES = 10
+PROXY_REQUEST_FAILED_MESSAGE_TEMPLATE = 'Failed to load {} after {} proxy attempts: {}'
+PROXY_FAILURE_TARGET_PAGE = 'page'
+PROXY_FAILURE_TARGET_SCHEDULE = 'schedule'
 
 
 def scrape_proxies():
@@ -58,3 +62,30 @@ def get_response(link, params, **proxie_data):
         web = requests.get(link, params=params)
 
     return web
+
+
+def get_response_with_retries(link,
+                              params,
+                              proxies,
+                              max_retries=DEFAULT_PROXY_MAX_RETRIES,
+                              failure_target=PROXY_FAILURE_TARGET_PAGE,
+                              proxy=None):
+    attempts = 0
+
+    if not proxy:
+        proxy = get_proxy(proxies)
+
+    web = get_response(link, params, proxies=proxies, proxy=proxy)
+    attempts += 1
+
+    while not web and attempts < max_retries:
+        proxy = get_proxy(proxies)
+        web = get_response(link, params, proxies=proxies, proxy=proxy)
+        attempts += 1
+
+    if not web:
+        raise RuntimeError(
+            PROXY_REQUEST_FAILED_MESSAGE_TEMPLATE.format(failure_target, max_retries, link)
+        )
+
+    return web, proxy

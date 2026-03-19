@@ -44,12 +44,17 @@ def apply_team_aliases(team_schedules):
 def get_schedule(proxies_list):
     params = {}
     if proxies_list:
-        proxy = proxies.get_proxy(proxies_list)
-        web = proxies.get_response(SCHEDULE_URL, params, proxies=proxies_list, proxy=proxy)
-
-        while not web:
-            proxy = proxies.get_proxy(proxies_list)
-            web = proxies.get_response(SCHEDULE_URL, params, proxies=proxies_list, proxy=proxy)
+        try:
+            web, _ = proxies.get_response_with_retries(
+                SCHEDULE_URL,
+                params,
+                proxies_list,
+                max_retries=proxies.DEFAULT_PROXY_MAX_RETRIES,
+                failure_target=proxies.PROXY_FAILURE_TARGET_SCHEDULE,
+            )
+        except RuntimeError as err:
+            print(err)
+            return {}
     else:
         web = proxies.get_response(SCHEDULE_URL, params)
 

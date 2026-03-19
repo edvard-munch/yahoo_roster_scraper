@@ -240,20 +240,14 @@ def parse_full_page(link, proxies, proxy=None, params=None):
         params = {}
 
     if proxies:
-        if not proxy:
-            proxy = proxies_scraper.get_proxy(proxies)
-
-        web = proxies_scraper.get_response(link,
-                                           params,
-                                           proxies=proxies,
-                                           proxy=proxy)
-
-        while not web:
-            proxy = proxies_scraper.get_proxy(proxies)
-            web = proxies_scraper.get_response(link,
-                                               params,
-                                               proxies=proxies,
-                                               proxy=proxy)
+        web, proxy = proxies_scraper.get_response_with_retries(
+            link,
+            params,
+            proxies,
+            max_retries=proxies_scraper.DEFAULT_PROXY_MAX_RETRIES,
+            failure_target=proxies_scraper.PROXY_FAILURE_TARGET_PAGE,
+            proxy=proxy,
+        )
 
     else:
         web = proxies_scraper.get_response(link, params)
