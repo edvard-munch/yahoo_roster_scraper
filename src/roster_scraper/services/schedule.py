@@ -12,6 +12,9 @@ GAMES_LEFT_THIS_WEEK_COLUMN = 'GL'
 SHEDULE_SCRAPING_SUCCESS_MESSAGE = 'Schedule scraped!'
 SCHEDULE_DEBUG_PREVIEW_TEAMS = 10
 SCHEDULE_NOT_AVAILABLE_MESSAGE = 'Schedule table not found on source page.'
+SCHEDULE_TEAMS_SCRAPED_MESSAGE = 'Schedule teams scraped (raw): {}'
+SCHEDULE_TEAMS_LOADED_MESSAGE = 'Schedule teams loaded (after aliases): {}'
+SCHEDULE_ALIAS_ENTRIES_ADDED_MESSAGE = 'Schedule alias entries added: {}'
 TEAM_CODE_ALIASES = {
     'MON': 'MTL',
     'ANH': 'ANA',
@@ -91,10 +94,16 @@ def get_schedule(proxies_list):
         games_left = int(games_match.group(0)) if games_match else 0
         team_schedules[team_code] = {GAMES_LEFT_THIS_WEEK_COLUMN: games_left}
 
+    raw_team_count = len(team_schedules)
     team_schedules = apply_team_aliases(team_schedules)
+    loaded_team_count = len(team_schedules)
+    alias_entries_added = loaded_team_count - raw_team_count
 
     print(SHEDULE_SCRAPING_SUCCESS_MESSAGE)
+    print(SCHEDULE_TEAMS_SCRAPED_MESSAGE.format(raw_team_count))
+    print(SCHEDULE_TEAMS_LOADED_MESSAGE.format(loaded_team_count))
+    if alias_entries_added:
+        print(SCHEDULE_ALIAS_ENTRIES_ADDED_MESSAGE.format(alias_entries_added))
     preview = sorted(team_schedules.keys())[:SCHEDULE_DEBUG_PREVIEW_TEAMS]
-    print(f'Schedule teams loaded: {len(team_schedules)}')
     print(f'Schedule teams preview: {preview}')
     return team_schedules
