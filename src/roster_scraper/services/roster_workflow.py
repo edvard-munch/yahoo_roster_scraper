@@ -85,7 +85,13 @@ def process_links(context: RosterWorkflowContext,
         team_name = get_team_name(soup, fallback_name=f"Team {index + 1}")
 
         if choice == format_choices["xlsx"]:
-            headers = get_headers(soup)
+            try:
+                headers = get_headers(soup)
+            except RuntimeError as err:
+                print(f"Skipping team due to header parse error: {team_name} ({link})")
+                print(err)
+                continue
+
             body = get_body(soup, schedule, missing_schedule_teams)
             table = core_parsing.map_headers_to_body(headers, body, True)
 

@@ -138,12 +138,23 @@ def get_team_name(soup, fallback_name="Unknown Team"):
 
 def get_headers(soup):
     header_row = soup.find("tr", class_=HEADERS_CLASSES)
+
+    if not header_row:
+        for row in soup.find_all("tr"):
+            header_names = [cell.get_text(strip=True) for cell in row.find_all(["th", "td"])]
+            if "Action" in header_names:
+                header_row = row
+                break
+
+    if not header_row:
+        raise RuntimeError("Roster header row not found")
+
     headers = {**START_HEADERS, **{}}
 
     start_adding = False
 
-    for child in header_row.children:
-        name = child.string
+    for child in header_row.find_all(["th", "td"]):
+        name = child.get_text(strip=True)
 
         if SEASON_IN_PROGRESS:
             headers["Add"] = []
