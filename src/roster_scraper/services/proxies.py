@@ -5,21 +5,21 @@ import bs4
 import requests
 
 
-PROXIES_URL = 'https://free-proxy-list.net/'
-PARSER = 'html.parser'
-PROXIES_TABLE_CLASS = 'table table-striped table-bordered'
-HTTPS_SUPPORT = 'yes'
-PROTOCOLS = ['http', 'https']
-TAGS = ['tr', 'td']
+PROXIES_URL = "https://free-proxy-list.net/"
+PARSER = "html.parser"
+PROXIES_TABLE_CLASS = "table table-striped table-bordered"
+HTTPS_SUPPORT = "yes"
+PROTOCOLS = ["http", "https"]
+TAGS = ["tr", "td"]
 
-CONNECTION_ERROR_MESSAGE = 'Connnection Error. Retry'
-PROXIE_CONNECTION_ATTEMPT_MESSAGE = 'Trying with IP: {}'
-PROXIES_LEFT_MESSAGE = 'Proxies left: {}'
+CONNECTION_ERROR_MESSAGE = "Connnection Error. Retry"
+PROXIE_CONNECTION_ATTEMPT_MESSAGE = "Trying with IP: {}"
+PROXIES_LEFT_MESSAGE = "Proxies left: {}"
 REQUEST_TIMEOUT = 2
 DEFAULT_PROXY_MAX_RETRIES = 10
-PROXY_REQUEST_FAILED_MESSAGE_TEMPLATE = 'Failed to load {} after {} proxy attempts: {}'
-PROXY_FAILURE_TARGET_PAGE = 'page'
-PROXY_FAILURE_TARGET_SCHEDULE = 'schedule'
+PROXY_REQUEST_FAILED_MESSAGE_TEMPLATE = "Failed to load {} after {} proxy attempts: {}"
+PROXY_FAILURE_TARGET_PAGE = "page"
+PROXY_FAILURE_TARGET_SCHEDULE = "schedule"
 
 
 def scrape_proxies():
@@ -30,7 +30,7 @@ def scrape_proxies():
 
     for tr in rows:
         if (tr.contents[6].string == HTTPS_SUPPORT) and (tr.contents[0].name == TAGS[1]):
-            proxy = f'{tr.contents[0].string}:{tr.contents[1].string}'
+            proxy = f"{tr.contents[0].string}:{tr.contents[1].string}"
             proxies.append({PROTOCOLS[0]: proxy, PROTOCOLS[1]: proxy})
 
     return proxies
@@ -41,22 +41,22 @@ def get_proxy(proxies):
         proxy_index = random.randint(0, len(proxies) - 1)
         return proxies[proxy_index]
 
-    print('No free proxies available. Refresh proxies list and try again!')
+    print("No free proxies available. Refresh proxies list and try again!")
     sys.exit(1)
 
 
 def get_response(link, params, **proxie_data):
     if proxie_data:
-        print(PROXIE_CONNECTION_ATTEMPT_MESSAGE.format(proxie_data['proxy']['http']))
+        print(PROXIE_CONNECTION_ATTEMPT_MESSAGE.format(proxie_data["proxy"]["http"]))
 
         try:
             web = requests.get(link, params=params,
-                               proxies=proxie_data['proxy'], timeout=REQUEST_TIMEOUT)
+                               proxies=proxie_data["proxy"], timeout=REQUEST_TIMEOUT)
 
         except (requests.ConnectTimeout, OSError):
             print(CONNECTION_ERROR_MESSAGE)
-            proxie_data['proxies'].remove(proxie_data['proxy'])
-            print(PROXIES_LEFT_MESSAGE.format(len(proxie_data['proxies'])))
+            proxie_data["proxies"].remove(proxie_data["proxy"])
+            print(PROXIES_LEFT_MESSAGE.format(len(proxie_data["proxies"])))
             return None
     else:
         web = requests.get(link, params=params)

@@ -5,10 +5,10 @@ import bs4
 from . import proxies
 
 
-PLAYER_URL = 'https://leftwinglock.com/players/index.php?p1={}&flag=y'
+PLAYER_URL = "https://leftwinglock.com/players/index.php?p1={}&flag=y"
 
-PARSER = 'lxml'
-POSITIONS_HEADER_STRING = 'Positional Data'
+PARSER = "lxml"
+POSITIONS_HEADER_STRING = "Positional Data"
 
 
 def get_soup(proxies_list, name):
@@ -29,15 +29,15 @@ def get_soup(proxies_list, name):
 
 def get_positional_data(proxies_list, name):
     soup = get_soup(proxies_list, name)
-    html_header = soup.find('h4', string=re.compile(POSITIONS_HEADER_STRING))
+    html_header = soup.find("h4", string=re.compile(POSITIONS_HEADER_STRING))
 
     if html_header:
-        table = html_header.find_next('table')
+        table = html_header.find_next("table")
 
-        table_headers = table.find('thead').find_all('th')
-        rows = table.find('tbody').find_all('tr')
+        table_headers = table.find("thead").find_all("th")
+        rows = table.find("tbody").find_all("tr")
         headers_map = []
-        output = {'name': name, 'seasons': []}
+        output = {"name": name, "seasons": []}
 
         for header in table_headers:
             headers_map.append(header.string)
@@ -47,6 +47,6 @@ def get_positional_data(proxies_list, name):
             for column_index, cell in enumerate(row):
                 season[headers_map[column_index]] = cell.string
 
-            output['seasons'].append(season)
+            output["seasons"].append(season)
 
         return output

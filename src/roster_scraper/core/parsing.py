@@ -21,8 +21,8 @@ def string_to_num(value, delimeter):
     if delimeter is not None:
         text = text.split(delimeter)[0]
 
-    text = re.sub(EMPTY_STRING_PATTERN, '0', text).strip()
-    match = re.search(r'-?\d+(?:\.\d+)?', text)
+    text = re.sub(EMPTY_STRING_PATTERN, "0", text).strip()
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
     if not match:
         return 0.0
 
@@ -55,18 +55,18 @@ def map_headers_to_body(headers, body, season_in_progress):
 
 
 def parse_for_json(skaters):
-    rows = skaters.find_all('tr')
+    rows = skaters.find_all("tr")
     roster = []
 
     for row in rows:
         for cell in row:
-            if PLAYER_NAME_CLASS in cell.attrs['class']:
+            if PLAYER_NAME_CLASS in cell.attrs["class"]:
                 player_link = cell.find(class_=PLAYER_LINK_CLASSES)
 
                 if player_link:
                     name = player_link.string
-                    span = cell.find(lambda tag: tag.get('class') == [TEAM_AND_POSITION_SPAN_CLASS])
-                    position = span.string.split(' - ')[1]
+                    span = cell.find(lambda tag: tag.get("class") == [TEAM_AND_POSITION_SPAN_CLASS])
+                    position = span.string.split(" - ")[1]
 
                     if position != POSITION_CODES[1]:
                         pos_data = positions_scraper.get_positional_data([], name)
@@ -77,13 +77,13 @@ def parse_for_json(skaters):
 def parse_clean_names(bodies):
     full_roster = []
     for body in bodies:
-        rows = body.find_all('tr')
+        rows = body.find_all("tr")
 
         txt = []
         for row_index, row in enumerate(rows):
             rostered_found = False
             for cell in row:
-                if PLAYER_NAME_CLASS in cell.attrs['class']:
+                if PLAYER_NAME_CLASS in cell.attrs["class"]:
                     player_link = cell.find(class_=PLAYER_LINK_CLASSES)
                     txt.append([])
 
@@ -93,14 +93,14 @@ def parse_clean_names(bodies):
                         txt[row_index].append(EMPTY_SPOT_STRING)
 
                 cell_text = cell.get_text(strip=True)
-                if (not rostered_found) and ('%' in cell_text):
+                if (not rostered_found) and ("%" in cell_text):
                     txt[row_index].append(cell_text)
                     rostered_found = True
 
             if txt[row_index] and len(txt[row_index]) == 1:
-                txt[row_index].append('0%')
+                txt[row_index].append("0%")
 
-        res = sorted(txt, key=lambda x: string_to_num(x[1], '%'), reverse=True)
+        res = sorted(txt, key=lambda x: string_to_num(x[1], "%"), reverse=True)
         zipped = list(zip(*res))
         full_roster.append(zipped[0])
 

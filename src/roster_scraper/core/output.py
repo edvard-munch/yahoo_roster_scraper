@@ -24,24 +24,24 @@ def get_filename():
 
 
 def open_file(filename):
-    if sys.platform == PLATFORMS['Windows']:
+    if sys.platform == PLATFORMS["Windows"]:
         os.startfile(filename)
     else:
-        if sys.platform == PLATFORMS['Mac_OS']:
-            opener = FILE_OPENERS['Mac_OS']
+        if sys.platform == PLATFORMS["Mac_OS"]:
+            opener = FILE_OPENERS["Mac_OS"]
         else:
-            opener = FILE_OPENERS['Linux']
+            opener = FILE_OPENERS["Linux"]
 
         subprocess.call([opener, filename])
 
 
 def verify_sheet_name(team_name):
-    return re.sub(INVALID_EXCEL_CHARACTERS_PATTERN, '', team_name)
+    return re.sub(INVALID_EXCEL_CHARACTERS_PATTERN, "", team_name)
 
 
 def write_to_xlsx(table, worksheet):
     col_num = 0
-    worksheet.set_column(*COLUMNS['second'], WIDE_COLUMN_WIDTH)
+    worksheet.set_column(*COLUMNS["second"], WIDE_COLUMN_WIDTH)
 
     for key, value in table.items():
         worksheet.write(0, col_num, key)
@@ -52,11 +52,11 @@ def write_to_xlsx(table, worksheet):
 def write_roster_to_txt(full_roster, file_mode, team_name, empty_spot_string):
     with open(TXT_FILENAME, file_mode) as text_file:
         text_file.write(TEAM_NAME_HEADER.format(team_name))
-        text_file.write('\n\n')
+        text_file.write("\n\n")
 
         for roster in full_roster:
             text_file.write("\n".join(
                 str(item) for item in roster if item != empty_spot_string))
-            text_file.write('\n\n')
+            text_file.write("\n\n")
 
-        text_file.write('\n')
+        text_file.write("\n")

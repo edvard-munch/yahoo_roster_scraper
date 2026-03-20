@@ -32,8 +32,8 @@ def process_matchups(context: MatchupsContext,
     proxies_scraper = context.proxies_scraper
     parse_full_page = context.parse_full_page
     scrape_from_page = context.scrape_from_page
-    worksheet.set_column(*columns['second'], wide_column_width)
-    worksheet.set_column(*columns['first'], wide_column_width)
+    worksheet.set_column(*columns["second"], wide_column_width)
+    worksheet.set_column(*columns["first"], wide_column_width)
     headers = []
     worksheet_row_number = 0
     worksheet_rows = [[]]
@@ -45,10 +45,10 @@ def process_matchups(context: MatchupsContext,
 
     for link_index, link in enumerate(matchup_links):
         soup, proxy = parse_full_page(link + matchup_totals_parameter, proxies, proxy)
-        table = scrape_from_page(soup, 'table', 'class', matchup_result_classes)[0]
+        table = scrape_from_page(soup, "table", "class", matchup_result_classes)[0]
 
         if not headers:
-            headers = table.find('thead').find_all('th')
+            headers = table.find("thead").find_all("th")
 
             for header in headers:
                 worksheet_rows[worksheet_row_number].append(header.string)
@@ -56,11 +56,11 @@ def process_matchups(context: MatchupsContext,
             worksheet_row_number += 1
             worksheet_rows.append([])
 
-        rows = table.find('tbody').find_all('tr')
+        rows = table.find("tbody").find_all("tr")
         number_of_cells = 0
 
         for row in rows:
-            cells = row.find_all('td')
+            cells = row.find_all("td")
 
             if not number_of_cells:
                 number_of_cells = len(cells)
@@ -69,7 +69,7 @@ def process_matchups(context: MatchupsContext,
 
             for cell in cells:
                 try:
-                    name = cell.find('span', class_=team_name_matchup_result_classes).string
+                    name = cell.find("span", class_=team_name_matchup_result_classes).string
                     prognosis = team_totals_dict.get(name, {})
 
                 except AttributeError:

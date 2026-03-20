@@ -18,16 +18,16 @@ from roster_scraper.core import output as core_output
 from roster_scraper.core import parsing as core_parsing
 
 
-BASE_FANTASY_URL = 'https://hockey.fantasysports.yahoo.com/hockey/'
+BASE_FANTASY_URL = "https://hockey.fantasysports.yahoo.com/hockey/"
 SEASON_IN_PROGRESS = True
 SEASON_JUST_STARTED = False  # if stats are not representative enough yet, use stats from the last season
 
 AVG_STATS_PAGE = {
-    'stat1': 'AS',
+    "stat1": "AS",
 }
 
 if SEASON_JUST_STARTED:
-    AVG_STATS_PAGE['stat2'] = 'AS_2025'  # Calculate year programmatically
+    AVG_STATS_PAGE["stat2"] = "AS_2025"  # Calculate year programmatically
 
 if SEASON_IN_PROGRESS:
     START_FROM = 1
@@ -36,87 +36,87 @@ else:
     START_FROM = 1
     NAME_COLUMN = 0
 
-PROXY_CHOICES = {'Y': True, 'n': False}
-FORMAT_CHOICES = {'xlsx': '1', 'txt': '2', 'json': '3', 'google_sheets': '4'}
+PROXY_CHOICES = {"Y": True, "n": False}
+FORMAT_CHOICES = {"xlsx": "1", "txt": "2", "json": "3", "google_sheets": "4"}
 
-PARSER = 'lxml'
+PARSER = "lxml"
 
-NUMBER_OF_TEAMS_PROCESSED_MESSAGE = '{}/{} teams ready'
-NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE = '{}/{} matchups ready'
+NUMBER_OF_TEAMS_PROCESSED_MESSAGE = "{}/{} teams ready"
+NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE = "{}/{} matchups ready"
 FORMAT_CHOICE_MESSAGE = ("Input 1 for full stats xls tables\n"
                           "Input 2 for simple txt rosters\n"
                           "Input 3 for positions in JSON file\n"
                           "Input 4 for writing positions to Google Sheets:\n")
 
-PROXIES_CHOICE_MESSAGE = 'Use proxies? Y/n:\n'
+PROXIES_CHOICE_MESSAGE = "Use proxies? Y/n:\n"
 INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
-INCORRECT_CHOICE_MESSAGE = 'Please select a correct option'
-LEAGUE_ID_INCORRECT_MESSAGE = 'League with this ID does not exist or not publicly viewable'
+INCORRECT_CHOICE_MESSAGE = "Please select a correct option"
+LEAGUE_ID_INCORRECT_MESSAGE = "League with this ID does not exist or not publicly viewable"
 LEAGUE_SCRAPING_SUCCESS_MESSAGE = "League's main page scraped!"
 
 TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
-XLSX_FILENAME_TEMPLATE = 'reports/stats_list_{}.xlsx'
-TXT_FILENAME = 'reports/clean_rosters.txt'
-POSITIONS_FILENAME = 'reports/positions.json'
-TEAM_NAME_HEADER = '--------------- {} ---------------'
-MATCHUPS_WORKSHEET_NAME = 'MATCHUPS'
+XLSX_FILENAME_TEMPLATE = "reports/stats_list_{}.xlsx"
+TXT_FILENAME = "reports/clean_rosters.txt"
+POSITIONS_FILENAME = "reports/positions.json"
+TEAM_NAME_HEADER = "--------------- {} ---------------"
+MATCHUPS_WORKSHEET_NAME = "MATCHUPS"
 
-MATCHUP_CLASSES = 'Linkable Listitem No-p'
-TEAMS_IN_MATCHUP_CLASSES = 'Fz-sm.Phone-fz-xs.Ell'
-MATCHUP_RESULT_CLASSES = 'Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdr'
-TEAM_NAME_MATCHUP_RESULT_CLASSES = 'Grid-u Nowrap'
-HEADERS_CLASSES = 'Alt Last'
-TEAM_NAME_CLASSES = 'Navtarget No-pbot F-reset No-case Fz-35 Fw-b team-name'
-TEAM_NAME_STANDINGS_CLASSES = 'Grid-u F-reset Ell Mawpx-250'
-PLAYOFFS_HEADER = 'Championship Bracket'
-STANDINGS_PAGE_URL = 'https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand'
-EMPTY_SPOT_CLASSES = 'Nowrap emptyplayer Inlineblock'
-SPOT_CLASS = 'pos-label'
-PLAYER_NAME_CLASS = 'player'
-PLAYER_LINK_CLASSES = 'Nowrap name F-link playernote'
+MATCHUP_CLASSES = "Linkable Listitem No-p"
+TEAMS_IN_MATCHUP_CLASSES = "Fz-sm.Phone-fz-xs.Ell"
+MATCHUP_RESULT_CLASSES = "Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdr"
+TEAM_NAME_MATCHUP_RESULT_CLASSES = "Grid-u Nowrap"
+HEADERS_CLASSES = "Alt Last"
+TEAM_NAME_CLASSES = "Navtarget No-pbot F-reset No-case Fz-35 Fw-b team-name"
+TEAM_NAME_STANDINGS_CLASSES = "Grid-u F-reset Ell Mawpx-250"
+PLAYOFFS_HEADER = "Championship Bracket"
+STANDINGS_PAGE_URL = "https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand"
+EMPTY_SPOT_CLASSES = "Nowrap emptyplayer Inlineblock"
+SPOT_CLASS = "pos-label"
+PLAYER_NAME_CLASS = "player"
+PLAYER_LINK_CLASSES = "Nowrap name F-link playernote"
 TEAM_AND_POSITION_SPAN_CLASS = "Fz-xxs"
 
-MATCHUP_TOTALS_PARAMETER = '&date=total'
-EMPTY_SPOT_STRING = 'Empty'
-EMPTY_CELL = '-'
+MATCHUP_TOTALS_PARAMETER = "&date=total"
+EMPTY_SPOT_STRING = "Empty"
+EMPTY_CELL = "-"
 
 RESEARCH_STATS_PAGE = {
-    'stat1': 'R',
+    "stat1": "R",
 }
 
 OPPONENTS_PAGE = {
-    'stat1': 'O',
+    "stat1": "O",
 }
 
 INVALID_EXCEL_CHARACTERS_PATTERN = r"[*\\\/]"
-EMPTY_STRING_PATTERN = r'^-$'
+EMPTY_STRING_PATTERN = r"^-$"
 
 PLATFORMS = {
-    'Windows': 'win32',
-    'Mac_OS': 'darwin',
+    "Windows": "win32",
+    "Mac_OS": "darwin",
 }
 
-FILE_OPENERS = {'Linux': 'xdg-open', 'Mac_OS': 'open'}
+FILE_OPENERS = {"Linux": "xdg-open", "Mac_OS": "open"}
 
-POSITION_CODES = ['G', 'D', 'LW', 'RW', 'C']
-NOT_PLAYING = ['IR', 'IR+', 'NA']
+POSITION_CODES = ["G", "D", "LW", "RW", "C"]
+NOT_PLAYING = ["IR", "IR+", "NA"]
 PRESEASON = 1
 SEASON = 2
 
 WIDE_COLUMN_WIDTH = 20
 NUMBER_OF_COLUMNS = 15
 COLUMNS = {
-    num2words.num2words(i + 1, to='ordinal'): (i, i)
+    num2words.num2words(i + 1, to="ordinal"): (i, i)
     for i in range(NUMBER_OF_COLUMNS)
 }
 
-START_HEADERS = {'Spot': [], 'Forwards/Defensemen': [], 'Team': [], 'Pos': []}
+START_HEADERS = {"Spot": [], "Forwards/Defensemen": [], "Team": [], "Pos": []}
 
 SCORING_COLUMNS = [
-    'G', 'A', 'P', '+/-', 'PIM', 'PPP', 'PPG', 'PPA', 'SHP', 'GWG', 'SOG', 'FW', 'HIT', 'BLK',
+    "G", "A", "P", "+/-", "PIM", "PPP", "PPG", "PPA", "SHP", "GWG", "SOG", "FW", "HIT", "BLK",
 ]
 COLUMNS_TO_DELETE = [
-    'Action', 'Add', 'Opp', 'Status', 'Pre-Season', 'Current', '% Started'
+    "Action", "Add", "Opp", "Status", "Pre-Season", "Current", "% Started"
 ]
 
 
@@ -124,20 +124,20 @@ def scrape_from_page(soup, element_type, attr_type, attr_name):
     return soup.find_all(element_type, {attr_type: attr_name})
 
 
-def get_team_name(soup, fallback_name='Unknown Team'):
-    name_links = scrape_from_page(soup, 'span', 'class', re.compile(TEAM_NAME_CLASSES))
+def get_team_name(soup, fallback_name="Unknown Team"):
+    name_links = scrape_from_page(soup, "span", "class", re.compile(TEAM_NAME_CLASSES))
     if name_links:
         return name_links[0].text.strip()[:30]
 
     title = soup.title.get_text(strip=True) if soup.title else None
     if title:
-        return title.split('|')[0].strip()[:30]
+        return title.split("|")[0].strip()[:30]
 
     return fallback_name[:30]
 
 
 def get_headers(soup):
-    header_row = soup.find('tr', class_=HEADERS_CLASSES)
+    header_row = soup.find("tr", class_=HEADERS_CLASSES)
     headers = {**START_HEADERS, **{}}
 
     start_adding = False
@@ -146,9 +146,9 @@ def get_headers(soup):
         name = child.string
 
         if SEASON_IN_PROGRESS:
-            headers['Add'] = []
+            headers["Add"] = []
 
-        if name == 'Action':
+        if name == "Action":
             start_adding = True
 
         if start_adding:
@@ -160,7 +160,7 @@ def get_headers(soup):
 
 
 def get_body(soup, schedule, missing_schedule_teams=None):
-    skater_rows = soup.find_all('tbody')[1].find_all('tr')
+    skater_rows = soup.find_all("tbody")[1].find_all("tr")
 
     cell_values = []
 
@@ -178,14 +178,14 @@ def get_body(soup, schedule, missing_schedule_teams=None):
             if i == 0:
                 cell_values.append([])
 
-            if (PLAYER_NAME_CLASS in cell.attrs['class']):
+            if (PLAYER_NAME_CLASS in cell.attrs["class"]):
                 if i == 0:
                     cell_values.extend(([], []))
                 player_link = cell.find(class_=PLAYER_LINK_CLASSES)
                 if player_link:
                     name = player_link.string
-                    span = cell.find(lambda tag: tag.get('class') == [TEAM_AND_POSITION_SPAN_CLASS])
-                    team, position = span.string.split(' - ')
+                    span = cell.find(lambda tag: tag.get("class") == [TEAM_AND_POSITION_SPAN_CLASS])
+                    team, position = span.string.split(" - ")
 
                     cell_values[index].append(name)
                     cell_values[index + 1].append(team)
@@ -266,7 +266,7 @@ def validate_input(message, choices):
 
 
 def get_links(soup, league_link):
-    matchups = scrape_from_page(soup, 'li', 'class', re.compile(MATCHUP_CLASSES))
+    matchups = scrape_from_page(soup, "li", "class", re.compile(MATCHUP_CLASSES))
 
     if matchups:
         matchup_links = []
@@ -278,8 +278,8 @@ def get_links(soup, league_link):
             teams = match.select(f"div.{TEAMS_IN_MATCHUP_CLASSES}")
 
             for team in teams:
-                html_link = team.find('a')
-                base_team_url = html_link.get('href')
+                html_link = team.find("a")
+                base_team_url = html_link.get("href")
                 team_links.append(base_team_url)
 
         print(LEAGUE_SCRAPING_SUCCESS_MESSAGE)
@@ -292,8 +292,8 @@ def get_links(soup, league_link):
 
 def get_links_from_standings(league_id, proxies):
     standings_page_soup = parse_full_page(STANDINGS_PAGE_URL.format(league_id), proxies)[0]
-    teams = scrape_from_page(standings_page_soup, 'a', 'class', TEAM_NAME_STANDINGS_CLASSES)
-    return [team_link.get('href') for team_link in teams]
+    teams = scrape_from_page(standings_page_soup, "a", "class", TEAM_NAME_STANDINGS_CLASSES)
+    return [team_link.get("href") for team_link in teams]
 
 
 def build_roster_context(workbook, matchups_context):
@@ -361,7 +361,7 @@ def main():
         scrape_from_page=scrape_from_page,
     )
 
-    if choice == FORMAT_CHOICES['xlsx']:
+    if choice == FORMAT_CHOICES["xlsx"]:
         schedule = schedule_scraper.get_schedule(proxies)
         matchup_links = league_scrapable[0]
 
@@ -400,10 +400,10 @@ def main():
             RESEARCH_STATS_PAGE,
         )
 
-        if choice == FORMAT_CHOICES['txt']:
+        if choice == FORMAT_CHOICES["txt"]:
             core_output.open_file(TXT_FILENAME)
-        elif choice == FORMAT_CHOICES['json']:
+        elif choice == FORMAT_CHOICES["json"]:
             core_output.open_file(POSITIONS_FILENAME)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
