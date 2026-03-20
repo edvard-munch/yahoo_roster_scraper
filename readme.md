@@ -11,5 +11,5 @@ uv sync
 Run scraper:
 
 ```bash
-uv run python yahoo_roster_scraper.py
+uv run yahoo-roster-scraper
 ```
