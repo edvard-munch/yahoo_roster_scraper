@@ -8,6 +8,12 @@ Install dependencies from lockfile:
 uv sync
 ```
 
+Run tests:
+
+```bash
+uv run --group dev pytest
+```
+
 Run scraper:
 
 ```bash
