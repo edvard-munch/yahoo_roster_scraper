@@ -79,6 +79,31 @@ def test_write_roster_to_txt_filters_empty_spots(tmp_path, monkeypatch):
     assert "Empty" not in text
 
 
+def test_write_roster_to_txt_appends_multiple_rosters(tmp_path, monkeypatch):
+    output_file = tmp_path / "clean_rosters.txt"
+    monkeypatch.setattr(output, "TXT_FILENAME", str(output_file))
+
+    output.write_roster_to_txt(
+        full_roster=[["Player One"], ["Player Two"]],
+        file_mode="w",
+        team_name="Team One",
+        empty_spot_string="Empty",
+    )
+    output.write_roster_to_txt(
+        full_roster=[["Player Three"]],
+        file_mode="a",
+        team_name="Team Two",
+        empty_spot_string="Empty",
+    )
+
+    text = output_file.read_text()
+
+    assert "Team One" in text
+    assert "Team Two" in text
+    assert "Player One" in text
+    assert "Player Three" in text
+
+
 def test_open_file_uses_startfile_on_windows(monkeypatch):
     calls = []
     monkeypatch.setattr(output.sys, "platform", output.PLATFORMS["Windows"])
@@ -99,3 +124,23 @@ def test_open_file_uses_subprocess_on_linux(monkeypatch):
     output.open_file("report.xlsx")
 
     assert calls == [[output.FILE_OPENERS["Linux"], "report.xlsx"]]
+
+
+def test_open_file_uses_subprocess_on_macos(monkeypatch):
+    calls = []
+    monkeypatch.setattr(output.sys, "platform", output.PLATFORMS["Mac_OS"])
+    monkeypatch.setattr(output.subprocess, "call", lambda args: calls.append(args))
+
+    output.open_file("report.xlsx")
+
+    assert calls == [[output.FILE_OPENERS["Mac_OS"], "report.xlsx"]]
+
+
+def test_write_to_xlsx_with_empty_table_only_sets_column_width():
+    worksheet = WorksheetSpy()
+
+    output.write_to_xlsx({}, worksheet)
+
+    assert worksheet.set_column_calls == [(1, 1, output.WIDE_COLUMN_WIDTH)]
+    assert worksheet.write_calls == []
+    assert worksheet.write_column_calls == []
