@@ -52,3 +52,57 @@ def test_get_schedule_returns_empty_when_schedule_table_missing(monkeypatch):
     result = schedule.get_schedule(proxies_list=[])
 
     assert result == {}
+
+
+def test_get_schedule_with_proxies_uses_retry_helper(
+    monkeypatch, frozenpool_schedule_html
+):
+    response = SimpleNamespace(content=frozenpool_schedule_html.encode("utf-8"))
+    calls = []
+
+    def fake_get_response_with_retries(
+        url, params, proxies_list, max_retries, failure_target
+    ):
+        calls.append(
+            {
+                "url": url,
+                "params": params,
+                "proxies_list": proxies_list,
+                "max_retries": max_retries,
+                "failure_target": failure_target,
+            }
+        )
+        return response, {"http": "1.1.1.1:80", "https": "1.1.1.1:80"}
+
+    monkeypatch.setattr(
+        schedule.proxies,
+        "get_response_with_retries",
+        fake_get_response_with_retries,
+    )
+
+    result = schedule.get_schedule(proxies_list=[{"http": "proxy", "https": "proxy"}])
+
+    assert result["BOS"][schedule.GAMES_LEFT_THIS_WEEK_COLUMN] == 3
+    assert len(calls) == 1
+    assert calls[0]["failure_target"] == schedule.proxies.PROXY_FAILURE_TARGET_SCHEDULE
+
+
+def test_get_schedule_with_proxies_returns_empty_on_retry_runtime_error(monkeypatch):
+    printed = []
+
+    monkeypatch.setattr(
+        "builtins.print",
+        lambda *args, **kwargs: printed.append(" ".join(str(arg) for arg in args)),
+    )
+    monkeypatch.setattr(
+        schedule.proxies,
+        "get_response_with_retries",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            RuntimeError("proxy retry failed")
+        ),
+    )
+
+    result = schedule.get_schedule(proxies_list=[{"http": "proxy", "https": "proxy"}])
+
+    assert result == {}
+    assert any("proxy retry failed" in message for message in printed)
