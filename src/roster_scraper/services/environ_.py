@@ -1,14 +1,29 @@
-import os.path
+from pathlib import Path
+import os
 
-import environ
+
+def _load_dotenv(dotenv_path: str = ".env") -> None:
+    path = Path(dotenv_path)
+    if not path.exists():
+        return
+
+    for raw_line in path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+
+        os.environ.setdefault(key, value)
 
 
-env = environ.Env(
-    DEBUG=(bool, False)
-)
+def env(name: str, default=None):
+    return os.environ.get(name, default)
 
-if os.path.exists(".env"):
-    environ.Env.read_env(".env")
+
+_load_dotenv()
 
 __all__ = [
     "env",
