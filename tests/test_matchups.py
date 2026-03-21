@@ -97,3 +97,83 @@ def test_process_matchups_treats_non_numeric_values_as_zero_before_prognosis():
 
     data_rows = [row for _, _, row in worksheet.rows if row and row[0] == "Team A"]
     assert data_rows[0][:3] == ["Team A", 5.0, 7.0]
+
+
+def test_process_matchups_uses_initial_proxy_when_proxies_enabled():
+    worksheet = WorksheetSpy()
+    proxy_calls = []
+    parse_calls = []
+
+    def parse_full_page(link, proxies, proxy):
+        parse_calls.append({"link": link, "proxies": proxies, "proxy": proxy})
+        return _build_soup("1", "2"), proxy
+
+    context = matchups.MatchupsContext(
+        columns={"first": (0, 0), "second": (1, 1)},
+        wide_column_width=20,
+        number_of_matchups_processed_message="{}/{} matchups ready",
+        matchup_totals_parameter="?stat1=ML",
+        matchup_result_classes="Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdr",
+        team_name_matchup_result_classes="Grid-u Nowrap",
+        proxies_scraper=SimpleNamespace(
+            get_proxy=lambda proxies: (
+                proxy_calls.append(list(proxies))
+                or {"http": "4.4.4.4:80", "https": "4.4.4.4:80"}
+            )
+        ),
+        parse_full_page=parse_full_page,
+        scrape_from_page=lambda soup, *args: soup.find_all("table"),
+    )
+
+    proxies_list = [{"http": "4.4.4.4:80", "https": "4.4.4.4:80"}]
+    matchups.process_matchups(
+        context,
+        matchup_links=["https://example.com/m1"],
+        team_totals_dict={"Team A": {"G": 1.0, "A": 1.0}},
+        proxies=proxies_list,
+        worksheet=worksheet,
+    )
+
+    assert len(proxy_calls) == 1
+    assert parse_calls[0]["proxy"] == {"http": "4.4.4.4:80", "https": "4.4.4.4:80"}
+
+
+def test_process_matchups_handles_missing_team_span_and_writes_spacer_rows():
+    worksheet = WorksheetSpy()
+    html = """
+    <html>
+      <body>
+        <table class="Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdr">
+          <thead>
+            <tr><th>Team</th><th>G</th><th>A</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Fallback Team</td><td>1</td><td>2</td></tr>
+            <tr><td><span class="Grid-u Nowrap">Team A</span></td><td>2</td><td>3</td></tr>
+          </tbody>
+        </table>
+      </body>
+    </html>
+    """
+    soup = bs4.BeautifulSoup(html, "lxml")
+
+    context = _build_context(lambda *args, **kwargs: (soup, None))
+
+    matchups.process_matchups(
+        context,
+        matchup_links=["https://example.com/m1"],
+        team_totals_dict={"Team A": {"G": 5.0, "A": 7.0}},
+        proxies=[],
+        worksheet=worksheet,
+    )
+
+    data_rows = [
+        row
+        for _, _, row in worksheet.rows
+        if row and row[0] in {"Fallback Team", "Team A"}
+    ]
+    assert data_rows[0][:3] == ["Fallback Team", "1", "2"]
+    assert data_rows[1][:3] == ["Team A", 7.0, 10.0]
+
+    spacer_rows = [row for _, _, row in worksheet.rows if row == [None, None, None]]
+    assert len(spacer_rows) == 1
