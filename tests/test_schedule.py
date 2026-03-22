@@ -54,15 +54,12 @@ def test_get_schedule_with_proxies_uses_retry_helper(monkeypatch, frozenpool_sch
     response = SimpleNamespace(content=frozenpool_schedule_html.encode("utf-8"))
     calls = []
 
-    def fake_get_response_with_retries(
-        url, params, proxies_list, max_retries, failure_target, proxy=None
-    ):
+    def fake_get_response_with_retries(url, params, proxies_list, failure_target, proxy=None):
         calls.append(
             {
                 "url": url,
                 "params": params,
                 "proxies_list": proxies_list,
-                "max_retries": max_retries,
                 "failure_target": failure_target,
                 "proxy": proxy,
             }

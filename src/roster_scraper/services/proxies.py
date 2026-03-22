@@ -1,5 +1,4 @@
 import random
-import sys
 
 import bs4
 import requests
@@ -15,9 +14,9 @@ TAGS = ["tr", "td"]
 CONNECTION_ERROR_MESSAGE = "Connnection Error. Retry"
 PROXIE_CONNECTION_ATTEMPT_MESSAGE = "Trying with IP: {}"
 PROXIES_LEFT_MESSAGE = "Proxies left: {}"
+NO_FREE_PROXIES_MESSAGE = "No free proxies available. Refresh proxies list and try again!"
 REQUEST_TIMEOUT = 2
-DEFAULT_PROXY_MAX_RETRIES = 10
-PROXY_REQUEST_FAILED_MESSAGE_TEMPLATE = "Failed to load {} after {} proxy attempts: {}"
+PROXY_POOL_EXHAUSTED_MESSAGE_TEMPLATE = "Failed to load {}: no free proxies available: {}"
 PROXY_FAILURE_TARGET_PAGE = "page"
 PROXY_FAILURE_TARGET_SCHEDULE = "schedule"
 
@@ -41,8 +40,7 @@ def get_proxy(proxies):
         proxy_index = random.randint(0, len(proxies) - 1)
         return proxies[proxy_index]
 
-    print("No free proxies available. Refresh proxies list and try again!")
-    sys.exit(1)
+    raise RuntimeError(NO_FREE_PROXIES_MESSAGE)
 
 
 def get_response(link, params, **proxie_data):
@@ -69,26 +67,21 @@ def get_response_with_retries(
     link,
     params,
     proxies,
-    max_retries=DEFAULT_PROXY_MAX_RETRIES,
     failure_target=PROXY_FAILURE_TARGET_PAGE,
     proxy=None,
 ):
-    attempts = 0
+    try:
+        if not proxy:
+            proxy = get_proxy(proxies)
 
-    if not proxy:
-        proxy = get_proxy(proxies)
-
-    web = get_response(link, params, proxies=proxies, proxy=proxy)
-    attempts += 1
-
-    while not web and attempts < max_retries:
-        proxy = get_proxy(proxies)
         web = get_response(link, params, proxies=proxies, proxy=proxy)
-        attempts += 1
 
-    if not web:
+        while not web:
+            proxy = get_proxy(proxies)
+            web = get_response(link, params, proxies=proxies, proxy=proxy)
+    except RuntimeError as err:
         raise RuntimeError(
-            PROXY_REQUEST_FAILED_MESSAGE_TEMPLATE.format(failure_target, max_retries, link)
-        )
+            PROXY_POOL_EXHAUSTED_MESSAGE_TEMPLATE.format(failure_target, link)
+        ) from err
 
     return web, proxy

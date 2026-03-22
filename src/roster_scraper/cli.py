@@ -269,7 +269,6 @@ def parse_full_page(link, proxies, proxy=None, params=None):
             link,
             params,
             proxies,
-            max_retries=proxies_scraper.DEFAULT_PROXY_MAX_RETRIES,
             failure_target=proxies_scraper.PROXY_FAILURE_TARGET_PAGE,
             proxy=proxy,
         )

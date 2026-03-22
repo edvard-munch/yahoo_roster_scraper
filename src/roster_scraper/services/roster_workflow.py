@@ -67,7 +67,6 @@ def process_links(
                 link,
                 stats_page,
                 proxies,
-                max_retries=proxies_scraper.DEFAULT_PROXY_MAX_RETRIES,
                 failure_target=proxies_scraper.PROXY_FAILURE_TARGET_PAGE,
                 proxy=proxy,
             )

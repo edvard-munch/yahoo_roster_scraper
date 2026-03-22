@@ -54,7 +54,6 @@ def get_schedule(proxies_list, proxy=None):
                 SCHEDULE_URL,
                 params,
                 proxies_list,
-                max_retries=proxies.DEFAULT_PROXY_MAX_RETRIES,
                 failure_target=proxies.PROXY_FAILURE_TARGET_SCHEDULE,
                 proxy=proxy,
             )

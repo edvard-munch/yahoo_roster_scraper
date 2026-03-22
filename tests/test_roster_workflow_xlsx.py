@@ -29,19 +29,17 @@ def _build_xlsx_context(proxy_enabled, get_body_impl):
 
     if proxy_enabled:
         proxies_scraper = SimpleNamespace(
-            DEFAULT_PROXY_MAX_RETRIES=10,
             PROXY_FAILURE_TARGET_PAGE="page",
             get_proxy=lambda proxies: (
                 get_proxy_calls.append(list(proxies))
                 or {"http": "1.1.1.1:80", "https": "1.1.1.1:80"}
             ),
-            get_response_with_retries=lambda link, stats_page, proxies, max_retries, failure_target, proxy=None: (
+            get_response_with_retries=lambda link, stats_page, proxies, failure_target, proxy=None: (
                 get_response_calls.append(
                     {
                         "link": link,
                         "stats_page": stats_page,
                         "proxies": list(proxies),
-                        "max_retries": max_retries,
                         "failure_target": failure_target,
                         "proxy": proxy,
                     }
@@ -54,7 +52,6 @@ def _build_xlsx_context(proxy_enabled, get_body_impl):
         )
     else:
         proxies_scraper = SimpleNamespace(
-            DEFAULT_PROXY_MAX_RETRIES=10,
             PROXY_FAILURE_TARGET_PAGE="page",
             get_proxy=lambda proxies: (_ for _ in ()).throw(
                 AssertionError("get_proxy should not be called")

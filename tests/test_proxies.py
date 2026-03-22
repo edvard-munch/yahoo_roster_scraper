@@ -47,7 +47,6 @@ def test_get_response_with_retries_returns_first_success(monkeypatch):
         "https://example.com",
         {},
         proxies=[{"http": "1.1.1.1:80", "https": "1.1.1.1:80"}],
-        max_retries=3,
     )
 
     assert web is response
@@ -72,25 +71,31 @@ def test_get_response_with_retries_retries_then_succeeds(monkeypatch):
         "https://example.com",
         {},
         proxies=[{"http": "1.1.1.1:80", "https": "1.1.1.1:80"}],
-        max_retries=5,
     )
 
     assert web is response
     assert calls["count"] == 3
 
 
-def test_get_response_with_retries_raises_after_retry_limit(monkeypatch):
-    monkeypatch.setattr(proxies, "get_proxy", lambda proxies_list: proxies_list[0])
+def test_get_response_with_retries_raises_when_proxy_pool_exhausted(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_get_proxy(proxies_list):
+        calls["count"] += 1
+        if calls["count"] < 3:
+            return {"http": "1.1.1.1:80", "https": "1.1.1.1:80"}
+        raise RuntimeError(proxies.NO_FREE_PROXIES_MESSAGE)
+
+    monkeypatch.setattr(proxies, "get_proxy", fake_get_proxy)
     monkeypatch.setattr(proxies, "get_response", lambda *args, **kwargs: None)
 
     with pytest.raises(
         RuntimeError,
-        match="Failed to load schedule after 2 proxy attempts: https://example.com",
+        match="Failed to load schedule: no free proxies available: https://example.com",
     ):
         proxies.get_response_with_retries(
             "https://example.com",
             {},
             proxies=[{"http": "1.1.1.1:80", "https": "1.1.1.1:80"}],
-            max_retries=2,
             failure_target=proxies.PROXY_FAILURE_TARGET_SCHEDULE,
         )

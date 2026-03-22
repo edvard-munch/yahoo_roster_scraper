@@ -58,11 +58,10 @@ def test_parse_full_page_with_proxies_uses_retry_helper(monkeypatch):
     calls = {}
     expected_proxy = {"http": "2.2.2.2:80", "https": "2.2.2.2:80"}
 
-    def fake_get_response_with_retries(link, params, proxies, max_retries, failure_target, proxy):
+    def fake_get_response_with_retries(link, params, proxies, failure_target, proxy):
         calls["link"] = link
         calls["params"] = params
         calls["proxies"] = proxies
-        calls["max_retries"] = max_retries
         calls["failure_target"] = failure_target
         calls["proxy"] = proxy
         return SimpleNamespace(text="<html><body><p>proxy</p></body></html>"), expected_proxy
@@ -86,7 +85,6 @@ def test_parse_full_page_with_proxies_uses_retry_helper(monkeypatch):
     assert calls["link"] == "https://example.com"
     assert calls["params"] == {"stat1": "AS"}
     assert calls["proxies"] == proxies_list
-    assert calls["max_retries"] == cli.proxies_scraper.DEFAULT_PROXY_MAX_RETRIES
     assert calls["failure_target"] == cli.proxies_scraper.PROXY_FAILURE_TARGET_PAGE
     assert calls["proxy"] == initial_proxy
     assert soup.find("p").get_text(strip=True) == "proxy"
