@@ -26,6 +26,12 @@ Format code:
 make fmt
 ```
 
+Install pre-commit hooks (runs format, lint, and tests before each commit):
+
+```bash
+uv run --group dev pre-commit install
+```
+
 Run scraper:
 
 ```bash
