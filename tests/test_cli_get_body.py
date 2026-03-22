@@ -38,9 +38,7 @@ def test_get_body_records_missing_schedule_team_and_sets_zero():
 
     schedule = {"BOS": {cli.schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN: 3}}
 
-    body = cli.get_body(
-        soup, schedule=schedule, missing_schedule_teams=missing_schedule_teams
-    )
+    body = cli.get_body(soup, schedule=schedule, missing_schedule_teams=missing_schedule_teams)
 
     assert body[-1] == [0]
     assert missing_schedule_teams == {"XYZ"}

@@ -58,9 +58,7 @@ def test_process_links_skips_team_when_headers_missing(monkeypatch):
         number_of_teams_processed_message="{}/{} teams ready",
         positions_filename="reports/positions.json",
         get_team_name=lambda soup, fallback_name: "Broken Team",
-        get_headers=lambda soup: (_ for _ in ()).throw(
-            RuntimeError("Roster header row not found")
-        ),
+        get_headers=lambda soup: (_ for _ in ()).throw(RuntimeError("Roster header row not found")),
         get_body=lambda *args, **kwargs: [],
         matchups_service=matchups_service,
         matchups_context=SimpleNamespace(),
@@ -84,8 +82,7 @@ def test_process_links_skips_team_when_headers_missing(monkeypatch):
     )
 
     assert any(
-        "Skipping team due to header parse error: Broken Team" in message
-        for message in printed
+        "Skipping team due to header parse error: Broken Team" in message for message in printed
     )
     assert any("Roster header row not found" in message for message in printed)
     assert len(matchups_calls) == 1

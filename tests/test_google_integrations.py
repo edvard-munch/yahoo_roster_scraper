@@ -56,9 +56,7 @@ def test_sheet_service_runs_oauth_flow_when_refresh_fails(monkeypatch):
     monkeypatch.setattr(
         google_api_auth,
         "build",
-        lambda service, version, credentials: SimpleNamespace(
-            spreadsheets=lambda: credentials
-        ),
+        lambda service, version, credentials: SimpleNamespace(spreadsheets=lambda: credentials),
     )
 
     result = google_api_auth.sheet_service()
@@ -178,9 +176,7 @@ def test_google_handles_http_error_when_add_sheet_fails(tmp_path, monkeypatch):
     payload_file.write_text(json.dumps({" Team X ": [{"name": "P1", "seasons": []}]}))
 
     handled = []
-    monkeypatch.setattr(
-        write_to_google_sheet.google_api_auth, "HttpError", FakeHttpError
-    )
+    monkeypatch.setattr(write_to_google_sheet.google_api_auth, "HttpError", FakeHttpError)
     monkeypatch.setattr(
         write_to_google_sheet.google_api_auth,
         "sheet_service",
@@ -193,9 +189,7 @@ def test_google_handles_http_error_when_add_sheet_fails(tmp_path, monkeypatch):
             ),
         ),
     )
-    monkeypatch.setattr(
-        write_to_google_sheet, "delete_all_sheets", lambda service: None
-    )
+    monkeypatch.setattr(write_to_google_sheet, "delete_all_sheets", lambda service: None)
     monkeypatch.setattr(
         write_to_google_sheet,
         "add_sheet",
@@ -220,9 +214,7 @@ def test_google_handles_http_error_when_values_update_fails(tmp_path, monkeypatc
     payload_file.write_text(json.dumps({" Team X ": [{"name": "P1", "seasons": []}]}))
 
     handled = []
-    monkeypatch.setattr(
-        write_to_google_sheet.google_api_auth, "HttpError", FakeHttpError
-    )
+    monkeypatch.setattr(write_to_google_sheet.google_api_auth, "HttpError", FakeHttpError)
     monkeypatch.setattr(
         write_to_google_sheet.google_api_auth,
         "sheet_service",
@@ -231,15 +223,11 @@ def test_google_handles_http_error_when_values_update_fails(tmp_path, monkeypatc
                 execute=lambda: {"sheets": [{"properties": {"title": "Team X"}}]}
             ),
             values=lambda: SimpleNamespace(
-                update=lambda **kwargs: (_ for _ in ()).throw(
-                    FakeHttpError("update failed")
-                )
+                update=lambda **kwargs: (_ for _ in ()).throw(FakeHttpError("update failed"))
             ),
         ),
     )
-    monkeypatch.setattr(
-        write_to_google_sheet, "delete_all_sheets", lambda service: None
-    )
+    monkeypatch.setattr(write_to_google_sheet, "delete_all_sheets", lambda service: None)
     monkeypatch.setattr(
         write_to_google_sheet,
         "handle_google_sheets_error",
@@ -251,9 +239,7 @@ def test_google_handles_http_error_when_values_update_fails(tmp_path, monkeypatc
     assert len(handled) == 1
 
 
-def test_google_handles_http_error_in_final_merge_and_freeze_stage(
-    tmp_path, monkeypatch
-):
+def test_google_handles_http_error_in_final_merge_and_freeze_stage(tmp_path, monkeypatch):
     class FakeHttpError(Exception):
         pass
 
@@ -261,37 +247,27 @@ def test_google_handles_http_error_in_final_merge_and_freeze_stage(
     payload_file.write_text(json.dumps({" Team X ": [{"name": "P1", "seasons": []}]}))
 
     handled = []
-    monkeypatch.setattr(
-        write_to_google_sheet.google_api_auth, "HttpError", FakeHttpError
-    )
+    monkeypatch.setattr(write_to_google_sheet.google_api_auth, "HttpError", FakeHttpError)
     monkeypatch.setattr(
         write_to_google_sheet.google_api_auth,
         "sheet_service",
         lambda: SimpleNamespace(
             get=lambda **kwargs: SimpleNamespace(
-                execute=lambda: {
-                    "sheets": [{"properties": {"title": "Team X", "sheetId": 1}}]
-                }
+                execute=lambda: {"sheets": [{"properties": {"title": "Team X", "sheetId": 1}}]}
             ),
             values=lambda: SimpleNamespace(
                 update=lambda **kwargs: SimpleNamespace(execute=lambda: {})
             ),
         ),
     )
-    monkeypatch.setattr(
-        write_to_google_sheet, "delete_all_sheets", lambda service: None
-    )
-    monkeypatch.setattr(
-        write_to_google_sheet, "rename_spreadsheet", lambda *args, **kwargs: None
-    )
+    monkeypatch.setattr(write_to_google_sheet, "delete_all_sheets", lambda service: None)
+    monkeypatch.setattr(write_to_google_sheet, "rename_spreadsheet", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         write_to_google_sheet,
         "handle_merging",
         lambda *args, **kwargs: (_ for _ in ()).throw(FakeHttpError("merge failed")),
     )
-    monkeypatch.setattr(
-        write_to_google_sheet, "handle_frozen_row", lambda *args, **kwargs: None
-    )
+    monkeypatch.setattr(write_to_google_sheet, "handle_frozen_row", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         write_to_google_sheet,
         "handle_google_sheets_error",
@@ -310,21 +286,13 @@ def test_google_success_flow_calls_rename_merge_and_freeze(tmp_path, monkeypatch
     calls = {"rename": 0, "merge": 0, "freeze": 0}
     service = SimpleNamespace(
         get=lambda **kwargs: SimpleNamespace(
-            execute=lambda: {
-                "sheets": [{"properties": {"title": "Team X", "sheetId": 1}}]
-            }
+            execute=lambda: {"sheets": [{"properties": {"title": "Team X", "sheetId": 1}}]}
         ),
-        values=lambda: SimpleNamespace(
-            update=lambda **kwargs: SimpleNamespace(execute=lambda: {})
-        ),
+        values=lambda: SimpleNamespace(update=lambda **kwargs: SimpleNamespace(execute=lambda: {})),
     )
 
-    monkeypatch.setattr(
-        write_to_google_sheet.google_api_auth, "sheet_service", lambda: service
-    )
-    monkeypatch.setattr(
-        write_to_google_sheet, "delete_all_sheets", lambda service_obj: None
-    )
+    monkeypatch.setattr(write_to_google_sheet.google_api_auth, "sheet_service", lambda: service)
+    monkeypatch.setattr(write_to_google_sheet, "delete_all_sheets", lambda service_obj: None)
     monkeypatch.setattr(
         write_to_google_sheet,
         "rename_spreadsheet",
@@ -377,9 +345,7 @@ def test_set_fixed_column_width_handles_success_and_error(monkeypatch):
         "builtins.print",
         lambda *args, **kwargs: printed.append(" ".join(str(arg) for arg in args)),
     )
-    monkeypatch.setattr(
-        write_to_google_sheet.google_api_auth, "HttpError", FakeHttpError
-    )
+    monkeypatch.setattr(write_to_google_sheet.google_api_auth, "HttpError", FakeHttpError)
 
     success_service = SimpleNamespace(
         batchUpdate=lambda **kwargs: SimpleNamespace(execute=lambda: {})

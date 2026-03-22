@@ -47,9 +47,7 @@ def _build_context(parse_full_page):
         matchup_totals_parameter="?stat1=ML",
         matchup_result_classes="Table-plain Table Table-px-sm Table-mid Datatable Ta-center Tz-xxs Bdr",
         team_name_matchup_result_classes="Grid-u Nowrap",
-        proxies_scraper=SimpleNamespace(
-            get_proxy=lambda proxies: proxies[0] if proxies else None
-        ),
+        proxies_scraper=SimpleNamespace(get_proxy=lambda proxies: proxies[0] if proxies else None),
         parse_full_page=parse_full_page,
         scrape_from_page=lambda soup, *args: soup.find_all("table"),
     )
@@ -117,8 +115,7 @@ def test_process_matchups_uses_initial_proxy_when_proxies_enabled():
         team_name_matchup_result_classes="Grid-u Nowrap",
         proxies_scraper=SimpleNamespace(
             get_proxy=lambda proxies: (
-                proxy_calls.append(list(proxies))
-                or {"http": "4.4.4.4:80", "https": "4.4.4.4:80"}
+                proxy_calls.append(list(proxies)) or {"http": "4.4.4.4:80", "https": "4.4.4.4:80"}
             )
         ),
         parse_full_page=parse_full_page,
@@ -168,9 +165,7 @@ def test_process_matchups_handles_missing_team_span_and_writes_spacer_rows():
     )
 
     data_rows = [
-        row
-        for _, _, row in worksheet.rows
-        if row and row[0] in {"Fallback Team", "Team A"}
+        row for _, _, row in worksheet.rows if row and row[0] in {"Fallback Team", "Team A"}
     ]
     assert data_rows[0][:3] == ["Fallback Team", "1", "2"]
     assert data_rows[1][:3] == ["Team A", 7.0, 10.0]

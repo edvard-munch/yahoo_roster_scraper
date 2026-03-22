@@ -50,8 +50,9 @@ def get_response(link, params, **proxie_data):
         print(PROXIE_CONNECTION_ATTEMPT_MESSAGE.format(proxie_data["proxy"]["http"]))
 
         try:
-            web = requests.get(link, params=params,
-                               proxies=proxie_data["proxy"], timeout=REQUEST_TIMEOUT)
+            web = requests.get(
+                link, params=params, proxies=proxie_data["proxy"], timeout=REQUEST_TIMEOUT
+            )
 
         except (requests.ConnectTimeout, OSError):
             print(CONNECTION_ERROR_MESSAGE)
@@ -64,12 +65,14 @@ def get_response(link, params, **proxie_data):
     return web
 
 
-def get_response_with_retries(link,
-                              params,
-                              proxies,
-                              max_retries=DEFAULT_PROXY_MAX_RETRIES,
-                              failure_target=PROXY_FAILURE_TARGET_PAGE,
-                              proxy=None):
+def get_response_with_retries(
+    link,
+    params,
+    proxies,
+    max_retries=DEFAULT_PROXY_MAX_RETRIES,
+    failure_target=PROXY_FAILURE_TARGET_PAGE,
+    proxy=None,
+):
     attempts = 0
 
     if not proxy:

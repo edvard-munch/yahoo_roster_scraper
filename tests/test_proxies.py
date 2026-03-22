@@ -31,9 +31,7 @@ def test_get_response_with_proxy_timeout_removes_proxy_and_returns_none(monkeypa
     proxy = {"http": "1.1.1.1:80", "https": "1.1.1.1:80"}
     proxies_list = [proxy]
 
-    response = proxies.get_response(
-        "https://example.com", {}, proxies=proxies_list, proxy=proxy
-    )
+    response = proxies.get_response("https://example.com", {}, proxies=proxies_list, proxy=proxy)
 
     assert response is None
     assert proxies_list == []

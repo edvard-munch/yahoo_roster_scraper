@@ -24,9 +24,7 @@ def test_sheet_service_runs_oauth_flow_when_token_is_missing(monkeypatch):
     monkeypatch.setattr(
         google_api_auth,
         "build",
-        lambda service, version, credentials: SimpleNamespace(
-            spreadsheets=lambda: credentials
-        ),
+        lambda service, version, credentials: SimpleNamespace(spreadsheets=lambda: credentials),
     )
 
     result = google_api_auth.sheet_service()
@@ -64,9 +62,7 @@ def test_sheet_service_refreshes_invalid_token_without_oauth(monkeypatch):
     monkeypatch.setattr(
         google_api_auth,
         "build",
-        lambda service, version, credentials: SimpleNamespace(
-            spreadsheets=lambda: credentials
-        ),
+        lambda service, version, credentials: SimpleNamespace(spreadsheets=lambda: credentials),
     )
 
     result = google_api_auth.sheet_service()

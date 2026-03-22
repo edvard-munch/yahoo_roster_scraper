@@ -20,7 +20,9 @@ from roster_scraper.core import parsing as core_parsing
 
 BASE_FANTASY_URL = "https://hockey.fantasysports.yahoo.com/hockey/"
 SEASON_IN_PROGRESS = True
-SEASON_JUST_STARTED = False  # if stats are not representative enough yet, use stats from the last season
+SEASON_JUST_STARTED = (
+    False  # if stats are not representative enough yet, use stats from the last season
+)
 
 AVG_STATS_PAGE = {
     "stat1": "AS",
@@ -43,10 +45,12 @@ PARSER = "lxml"
 
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = "{}/{} teams ready"
 NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE = "{}/{} matchups ready"
-FORMAT_CHOICE_MESSAGE = ("Input 1 for full stats xls tables\n"
-                          "Input 2 for simple txt rosters\n"
-                          "Input 3 for positions in JSON file\n"
-                          "Input 4 for writing positions to Google Sheets:\n")
+FORMAT_CHOICE_MESSAGE = (
+    "Input 1 for full stats xls tables\n"
+    "Input 2 for simple txt rosters\n"
+    "Input 3 for positions in JSON file\n"
+    "Input 4 for writing positions to Google Sheets:\n"
+)
 
 PROXIES_CHOICE_MESSAGE = "Use proxies? Y/n:\n"
 INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
@@ -69,7 +73,9 @@ HEADERS_CLASSES = "Alt Last"
 TEAM_NAME_CLASSES = "Navtarget No-pbot F-reset No-case Fz-35 Fw-b team-name"
 TEAM_NAME_STANDINGS_CLASSES = "Grid-u F-reset Ell Mawpx-250"
 PLAYOFFS_HEADER = "Championship Bracket"
-STANDINGS_PAGE_URL = "https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand"
+STANDINGS_PAGE_URL = (
+    "https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand"
+)
 EMPTY_SPOT_CLASSES = "Nowrap emptyplayer Inlineblock"
 SPOT_CLASS = "pos-label"
 PLAYER_NAME_CLASS = "player"
@@ -105,19 +111,27 @@ SEASON = 2
 
 WIDE_COLUMN_WIDTH = 20
 NUMBER_OF_COLUMNS = 15
-COLUMNS = {
-    num2words.num2words(i + 1, to="ordinal"): (i, i)
-    for i in range(NUMBER_OF_COLUMNS)
-}
+COLUMNS = {num2words.num2words(i + 1, to="ordinal"): (i, i) for i in range(NUMBER_OF_COLUMNS)}
 
 START_HEADERS = {"Spot": [], "Forwards/Defensemen": [], "Team": [], "Pos": []}
 
 SCORING_COLUMNS = [
-    "G", "A", "P", "+/-", "PIM", "PPP", "PPG", "PPA", "SHP", "GWG", "SOG", "FW", "HIT", "BLK",
+    "G",
+    "A",
+    "P",
+    "+/-",
+    "PIM",
+    "PPP",
+    "PPG",
+    "PPA",
+    "SHP",
+    "GWG",
+    "SOG",
+    "FW",
+    "HIT",
+    "BLK",
 ]
-COLUMNS_TO_DELETE = [
-    "Action", "Add", "Opp", "Status", "Pre-Season", "Current", "% Started"
-]
+COLUMNS_TO_DELETE = ["Action", "Add", "Opp", "Status", "Pre-Season", "Current", "% Started"]
 
 
 def scrape_from_page(soup, element_type, attr_type, attr_name):
@@ -189,7 +203,7 @@ def get_body(soup, schedule, missing_schedule_teams=None):
             if i == 0:
                 cell_values.append([])
 
-            if (PLAYER_NAME_CLASS in cell.attrs["class"]):
+            if PLAYER_NAME_CLASS in cell.attrs["class"]:
                 if i == 0:
                     cell_values.extend(([], []))
                 player_link = cell.find(class_=PLAYER_LINK_CLASSES)
@@ -284,8 +298,7 @@ def get_links(soup, league_link):
         team_links = []
 
         for match in matchups:
-            matchup_links.append(
-                f"{league_link}/{match.attrs['data-target'].split('/')[-1]}")
+            matchup_links.append(f"{league_link}/{match.attrs['data-target'].split('/')[-1]}")
             teams = match.select(f"div.{TEAMS_IN_MATCHUP_CLASSES}")
 
             for team in teams:
@@ -415,6 +428,7 @@ def main():
             core_output.open_file(TXT_FILENAME)
         elif choice == FORMAT_CHOICES["json"]:
             core_output.open_file(POSITIONS_FILENAME)
+
 
 if __name__ == "__main__":
     main()

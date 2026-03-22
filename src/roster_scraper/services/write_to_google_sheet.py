@@ -12,9 +12,7 @@ HTTP_FORBIDDEN_STATUS = 403
 
 
 def delete_all_sheets(service):
-    response = service.get(
-        spreadsheetId=SPREADSHEET_ID, fields="sheets.properties"
-    ).execute()
+    response = service.get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties").execute()
 
     sheets = response.get("sheets", [])
 
@@ -23,13 +21,9 @@ def delete_all_sheets(service):
         return
 
     sheet_ids = [sheet["properties"]["sheetId"] for sheet in sheets]
-    delete_requests = [
-        {"deleteSheet": {"sheetId": sheet_id}} for sheet_id in sheet_ids[1:]
-    ]
+    delete_requests = [{"deleteSheet": {"sheetId": sheet_id}} for sheet_id in sheet_ids[1:]]
 
-    service.batchUpdate(
-        spreadsheetId=SPREADSHEET_ID, body={"requests": delete_requests}
-    ).execute()
+    service.batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": delete_requests}).execute()
 
     print("All sheets except one have been deleted.")
 
@@ -118,9 +112,9 @@ def google(filename):
                 return
 
     try:
-        sheets = service.get(
-            spreadsheetId=SPREADSHEET_ID, fields="sheets.properties"
-        ).execute()["sheets"]
+        sheets = service.get(spreadsheetId=SPREADSHEET_ID, fields="sheets.properties").execute()[
+            "sheets"
+        ]
 
         date = get_modification_date(filename)
         rename_spreadsheet(service, SPREADSHEET_FILENAME_TEMPLATE.format(date))

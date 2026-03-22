@@ -55,8 +55,7 @@ def write_roster_to_txt(full_roster, file_mode, team_name, empty_spot_string):
         text_file.write("\n\n")
 
         for roster in full_roster:
-            text_file.write("\n".join(
-                str(item) for item in roster if item != empty_spot_string))
+            text_file.write("\n".join(str(item) for item in roster if item != empty_spot_string))
             text_file.write("\n\n")
 
         text_file.write("\n")

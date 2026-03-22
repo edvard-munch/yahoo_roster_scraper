@@ -15,9 +15,7 @@ def test_main_retries_invalid_proxy_and_league_then_runs_txt(monkeypatch):
     process_calls = []
     opened_files = []
 
-    monkeypatch.setattr(
-        cli, "validate_input", lambda *args, **kwargs: next(validate_results)
-    )
+    monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
         cli,
@@ -53,17 +51,11 @@ def test_main_uses_standings_links_for_json_when_playoffs_header_present(monkeyp
     process_calls = []
     opened_files = []
 
-    playoffs_soup = bs4.BeautifulSoup(
-        f"<html><body>{cli.PLAYOFFS_HEADER}</body></html>", "lxml"
-    )
+    playoffs_soup = bs4.BeautifulSoup(f"<html><body>{cli.PLAYOFFS_HEADER}</body></html>", "lxml")
 
-    monkeypatch.setattr(
-        cli, "validate_input", lambda *args, **kwargs: next(validate_results)
-    )
+    monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
-    monkeypatch.setattr(
-        cli, "parse_full_page", lambda *args, **kwargs: (playoffs_soup, None)
-    )
+    monkeypatch.setattr(cli, "parse_full_page", lambda *args, **kwargs: (playoffs_soup, None))
     monkeypatch.setattr(
         cli,
         "get_links",
@@ -99,9 +91,7 @@ def test_main_runs_google_mode_without_opening_local_file(monkeypatch):
     process_calls = []
     opened_files = []
 
-    monkeypatch.setattr(
-        cli, "validate_input", lambda *args, **kwargs: next(validate_results)
-    )
+    monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
         cli,
@@ -142,18 +132,14 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
         (),
         {
             "__init__": lambda self, filename: setattr(self, "filename", filename),
-            "add_worksheet": lambda self, name: type(
-                "WorksheetSpy", (), {"name": name}
-            )(),
+            "add_worksheet": lambda self, name: type("WorksheetSpy", (), {"name": name})(),
             "close": lambda self: None,
         },
     )
 
     monkeypatch.setattr(cli, "SEASON_JUST_STARTED", True)
     monkeypatch.setattr(cli, "AVG_STATS_PAGE", {"stat1": "AS", "stat2": "AS_2025"})
-    monkeypatch.setattr(
-        cli, "validate_input", lambda *args, **kwargs: next(validate_results)
-    )
+    monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
         cli,
@@ -165,9 +151,7 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
         "get_links",
         lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
     )
-    monkeypatch.setattr(
-        cli.schedule_scraper, "get_schedule", lambda proxies: {"BOS": {"GL": 3}}
-    )
+    monkeypatch.setattr(cli.schedule_scraper, "get_schedule", lambda proxies: {"BOS": {"GL": 3}})
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
     monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
     monkeypatch.setattr(

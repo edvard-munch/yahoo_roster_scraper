@@ -91,9 +91,7 @@ def _build_xlsx_context(proxy_enabled, get_body_impl):
         get_team_name=lambda soup, fallback_name: " Team/One ",
         get_headers=lambda soup: {"G": [], "Other": []},
         get_body=get_body_impl,
-        matchups_service=SimpleNamespace(
-            process_matchups=lambda *args: matchup_calls.append(args)
-        ),
+        matchups_service=SimpleNamespace(process_matchups=lambda *args: matchup_calls.append(args)),
         matchups_context=SimpleNamespace(tag="ctx"),
     )
 
@@ -151,13 +149,11 @@ def test_process_links_xlsx_uses_proxy_path_and_reports_missing_schedule_teams(
         lambda *args, **kwargs: printed.append(" ".join(str(arg) for arg in args)),
     )
 
-    context, _, _, _, matchup_calls, get_proxy_calls, get_response_calls = (
-        _build_xlsx_context(
-            proxy_enabled=True,
-            get_body_impl=lambda soup, schedule, missing_schedule_teams: (
-                missing_schedule_teams.add("XYZ") or [["row"], [0]]
-            ),
-        )
+    context, _, _, _, matchup_calls, get_proxy_calls, get_response_calls = _build_xlsx_context(
+        proxy_enabled=True,
+        get_body_impl=lambda soup, schedule, missing_schedule_teams: (
+            missing_schedule_teams.add("XYZ") or [["row"], [0]]
+        ),
     )
 
     roster_workflow.process_links(

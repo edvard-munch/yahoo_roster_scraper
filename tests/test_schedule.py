@@ -29,9 +29,7 @@ def test_get_schedule_parses_fixture_html_and_applies_aliases(
     monkeypatch, frozenpool_schedule_html
 ):
     response = SimpleNamespace(content=frozenpool_schedule_html.encode("utf-8"))
-    monkeypatch.setattr(
-        schedule.proxies, "get_response", lambda *args, **kwargs: response
-    )
+    monkeypatch.setattr(schedule.proxies, "get_response", lambda *args, **kwargs: response)
 
     result = schedule.get_schedule(proxies_list=[])
 
@@ -45,24 +43,18 @@ def test_get_schedule_parses_fixture_html_and_applies_aliases(
 def test_get_schedule_returns_empty_when_schedule_table_missing(monkeypatch):
     html = "<html><body><table><tr><th>Something</th></tr></table></body></html>"
     response = SimpleNamespace(content=html.encode("utf-8"))
-    monkeypatch.setattr(
-        schedule.proxies, "get_response", lambda *args, **kwargs: response
-    )
+    monkeypatch.setattr(schedule.proxies, "get_response", lambda *args, **kwargs: response)
 
     result = schedule.get_schedule(proxies_list=[])
 
     assert result == {}
 
 
-def test_get_schedule_with_proxies_uses_retry_helper(
-    monkeypatch, frozenpool_schedule_html
-):
+def test_get_schedule_with_proxies_uses_retry_helper(monkeypatch, frozenpool_schedule_html):
     response = SimpleNamespace(content=frozenpool_schedule_html.encode("utf-8"))
     calls = []
 
-    def fake_get_response_with_retries(
-        url, params, proxies_list, max_retries, failure_target
-    ):
+    def fake_get_response_with_retries(url, params, proxies_list, max_retries, failure_target):
         calls.append(
             {
                 "url": url,
@@ -97,9 +89,7 @@ def test_get_schedule_with_proxies_returns_empty_on_retry_runtime_error(monkeypa
     monkeypatch.setattr(
         schedule.proxies,
         "get_response_with_retries",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            RuntimeError("proxy retry failed")
-        ),
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("proxy retry failed")),
     )
 
     result = schedule.get_schedule(proxies_list=[{"http": "proxy", "https": "proxy"}])

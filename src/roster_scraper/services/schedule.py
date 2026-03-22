@@ -5,8 +5,10 @@ import bs4
 from . import proxies
 
 
-SCHEDULE_URL = ("https://frozenpool.dobbersports.com/frozenpool_planner.php?"
-                "report=Remaining+wk&startdate=&enddate=&light_day=8&include_preseason=y")
+SCHEDULE_URL = (
+    "https://frozenpool.dobbersports.com/frozenpool_planner.php?"
+    "report=Remaining+wk&startdate=&enddate=&light_day=8&include_preseason=y"
+)
 PARSER = "lxml"
 GAMES_LEFT_THIS_WEEK_COLUMN = "GL"
 SHEDULE_SCRAPING_SUCCESS_MESSAGE = "Schedule scraped!"

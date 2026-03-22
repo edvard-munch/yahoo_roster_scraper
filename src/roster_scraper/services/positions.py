@@ -16,11 +16,15 @@ def get_soup(proxies_list, name):
 
     if proxies_list:
         proxy = proxies.get_proxy(proxies_list)
-        web = proxies.get_response(PLAYER_URL.format(name), params, proxies=proxies_list, proxy=proxy)
+        web = proxies.get_response(
+            PLAYER_URL.format(name), params, proxies=proxies_list, proxy=proxy
+        )
 
         while not web:
             proxy = proxies.get_proxy(proxies_list)
-            web = proxies.get_response(PLAYER_URL.format(name), params, proxies=proxies_list, proxy=proxy)
+            web = proxies.get_response(
+                PLAYER_URL.format(name), params, proxies=proxies_list, proxy=proxy
+            )
     else:
         web = proxies.get_response(PLAYER_URL.format(name), params)
 

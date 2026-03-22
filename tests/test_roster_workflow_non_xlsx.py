@@ -9,9 +9,7 @@ class DummyResponse:
         self.text = text
 
 
-def _build_context(
-    tmp_path, choice, parse_clean_names_result=None, parse_for_json_result=None
-):
+def _build_context(tmp_path, choice, parse_clean_names_result=None, parse_for_json_result=None):
     html = "<html><body><tbody></tbody><tbody><tr><td>player</td></tr></tbody></body></html>"
     calls = {
         "txt": [],
@@ -25,16 +23,12 @@ def _build_context(
         parse_clean_names=lambda bodies: (
             calls["clean_parse"].append(bodies) or parse_clean_names_result
         ),
-        parse_for_json=lambda body: (
-            calls["json_parse"].append(body) or parse_for_json_result
-        ),
+        parse_for_json=lambda body: calls["json_parse"].append(body) or parse_for_json_result,
     )
     core_output = SimpleNamespace(
         verify_sheet_name=lambda name: name,
         write_to_xlsx=lambda *args, **kwargs: None,
-        write_roster_to_txt=lambda data, mode, team_name, empty_spot: calls[
-            "txt"
-        ].append(
+        write_roster_to_txt=lambda data, mode, team_name, empty_spot: calls["txt"].append(
             {
                 "data": data,
                 "mode": mode,
@@ -88,9 +82,7 @@ def _build_context(
 
 
 def test_process_links_txt_branch_writes_clean_roster(tmp_path):
-    calls, _ = _build_context(
-        tmp_path, choice="2", parse_clean_names_result=[["P1", "P2"]]
-    )
+    calls, _ = _build_context(tmp_path, choice="2", parse_clean_names_result=[["P1", "P2"]])
 
     assert len(calls["txt"]) == 1
     assert calls["txt"][0]["data"] == [["P1", "P2"]]

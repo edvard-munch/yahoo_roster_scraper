@@ -18,11 +18,9 @@ class MatchupsContext:
     scrape_from_page: Callable[..., list[Any]]
 
 
-def process_matchups(context: MatchupsContext,
-                     matchup_links,
-                     team_totals_dict,
-                     proxies,
-                     worksheet) -> None:
+def process_matchups(
+    context: MatchupsContext, matchup_links, team_totals_dict, proxies, worksheet
+) -> None:
     columns = context.columns
     wide_column_width = context.wide_column_width
     number_of_matchups_processed_message = context.number_of_matchups_processed_message
@@ -77,7 +75,7 @@ def process_matchups(context: MatchupsContext,
 
                 worksheet_rows[worksheet_row_number].append(name)
 
-            row_values = worksheet_rows[worksheet_row_number][1:len(prognosis) + 1]
+            row_values = worksheet_rows[worksheet_row_number][1 : len(prognosis) + 1]
             prognosis_values = list(prognosis.values())
 
             for value_num, _ in enumerate(row_values):
@@ -88,7 +86,7 @@ def process_matchups(context: MatchupsContext,
 
                 row_values[value_num] = value + prognosis_values[value_num]
 
-            worksheet_rows[worksheet_row_number][1:len(prognosis) + 1] = row_values
+            worksheet_rows[worksheet_row_number][1 : len(prognosis) + 1] = row_values
 
             worksheet_row_number += 1
             worksheet_rows.append([])

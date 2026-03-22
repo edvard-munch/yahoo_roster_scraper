@@ -58,18 +58,14 @@ def test_parse_full_page_with_proxies_uses_retry_helper(monkeypatch):
     calls = {}
     expected_proxy = {"http": "2.2.2.2:80", "https": "2.2.2.2:80"}
 
-    def fake_get_response_with_retries(
-        link, params, proxies, max_retries, failure_target, proxy
-    ):
+    def fake_get_response_with_retries(link, params, proxies, max_retries, failure_target, proxy):
         calls["link"] = link
         calls["params"] = params
         calls["proxies"] = proxies
         calls["max_retries"] = max_retries
         calls["failure_target"] = failure_target
         calls["proxy"] = proxy
-        return SimpleNamespace(
-            text="<html><body><p>proxy</p></body></html>"
-        ), expected_proxy
+        return SimpleNamespace(text="<html><body><p>proxy</p></body></html>"), expected_proxy
 
     monkeypatch.setattr(
         cli.proxies_scraper,

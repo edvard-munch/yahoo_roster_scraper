@@ -26,14 +26,16 @@ class RosterWorkflowContext:
     matchups_context: Any
 
 
-def process_links(context: RosterWorkflowContext,
-                  links,
-                  proxies,
-                  choice,
-                  stats_page,
-                  matchup_links=None,
-                  schedule=None,
-                  matchups_worksheet=None) -> None:
+def process_links(
+    context: RosterWorkflowContext,
+    links,
+    proxies,
+    choice,
+    stats_page,
+    matchup_links=None,
+    schedule=None,
+    matchups_worksheet=None,
+) -> None:
     format_choices = context.format_choices
     parser = context.parser
     proxies_scraper = context.proxies_scraper
@@ -65,17 +67,11 @@ def process_links(context: RosterWorkflowContext,
     json_dump_data: dict[str, Any] = {}
     for index, link in enumerate(links):
         if proxies:
-            web = proxies_scraper.get_response(link,
-                                               stats_page,
-                                               proxies=proxies,
-                                               proxy=proxy)
+            web = proxies_scraper.get_response(link, stats_page, proxies=proxies, proxy=proxy)
 
             while not web:
                 proxy = proxies_scraper.get_proxy(proxies)
-                web = proxies_scraper.get_response(link,
-                                                   stats_page,
-                                                   proxies=proxies,
-                                                   proxy=proxy)
+                web = proxies_scraper.get_response(link, stats_page, proxies=proxies, proxy=proxy)
 
         else:
             web = proxies_scraper.get_response(link, stats_page)
