@@ -2,6 +2,7 @@
 /.venv
 /reports
 /__pycache__
+**/__pycache__/
 links.txt
 .env
 google_credentials.json
