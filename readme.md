@@ -14,6 +14,18 @@ Run tests:
 uv run --group dev pytest
 ```
 
+Run lint checks:
+
+```bash
+make lint
+```
+
+Format code:
+
+```bash
+make fmt
+```
+
 Run scraper:
 
 ```bash
