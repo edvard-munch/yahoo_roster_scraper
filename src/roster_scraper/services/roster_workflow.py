@@ -35,7 +35,8 @@ def process_links(
     matchup_links=None,
     schedule=None,
     matchups_worksheet=None,
-) -> None:
+    proxy=None,
+) -> Any:
     format_choices = context.format_choices
     parser = context.parser
     proxies_scraper = context.proxies_scraper
@@ -59,19 +60,17 @@ def process_links(
     if choice == format_choices["xlsx"]:
         schedule = schedule_scraper.apply_team_aliases(schedule or {})
 
-    proxy = None
-
-    if proxies:
-        proxy = proxies_scraper.get_proxy(proxies)
-
     json_dump_data: dict[str, Any] = {}
     for index, link in enumerate(links):
         if proxies:
-            web = proxies_scraper.get_response(link, stats_page, proxies=proxies, proxy=proxy)
-
-            while not web:
-                proxy = proxies_scraper.get_proxy(proxies)
-                web = proxies_scraper.get_response(link, stats_page, proxies=proxies, proxy=proxy)
+            web, proxy = proxies_scraper.get_response_with_retries(
+                link,
+                stats_page,
+                proxies,
+                max_retries=proxies_scraper.DEFAULT_PROXY_MAX_RETRIES,
+                failure_target=proxies_scraper.PROXY_FAILURE_TARGET_PAGE,
+                proxy=proxy,
+            )
 
         else:
             web = proxies_scraper.get_response(link, stats_page)
@@ -134,10 +133,13 @@ def process_links(
             }
             print(f"Schedule teams not found: {mapped_preview}")
 
-        matchups_service.process_matchups(
+        proxy = matchups_service.process_matchups(
             matchups_context,
             matchup_links,
             team_totals_dict,
             proxies,
             matchups_worksheet,
+            proxy=proxy,
         )
+
+    return proxy

@@ -124,10 +124,11 @@ def test_get_links_returns_none_when_no_matchups_found():
 def test_get_links_from_standings_returns_team_hrefs(monkeypatch):
     captured = {}
 
-    def fake_parse_full_page(link, proxies):
+    def fake_parse_full_page(link, proxies, proxy=None):
         captured["link"] = link
         captured["proxies"] = proxies
-        return bs4.BeautifulSoup("<html></html>", "lxml"), None
+        captured["proxy"] = proxy
+        return bs4.BeautifulSoup("<html></html>", "lxml"), proxy
 
     monkeypatch.setattr(cli, "parse_full_page", fake_parse_full_page)
     monkeypatch.setattr(
@@ -139,8 +140,10 @@ def test_get_links_from_standings_returns_team_hrefs(monkeypatch):
         ],
     )
 
-    result = cli.get_links_from_standings("19715", proxies=[])
+    result, proxy = cli.get_links_from_standings("19715", proxies=[])
 
     assert captured["link"] == cli.STANDINGS_PAGE_URL.format("19715")
     assert captured["proxies"] == []
+    assert captured["proxy"] is None
     assert result == ["/team/10", "/team/11"]
+    assert proxy is None

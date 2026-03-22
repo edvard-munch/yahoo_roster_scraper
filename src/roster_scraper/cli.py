@@ -314,10 +314,12 @@ def get_links(soup, league_link):
         return None
 
 
-def get_links_from_standings(league_id, proxies):
-    standings_page_soup = parse_full_page(STANDINGS_PAGE_URL.format(league_id), proxies)[0]
+def get_links_from_standings(league_id, proxies, proxy=None):
+    standings_page_soup, proxy = parse_full_page(
+        STANDINGS_PAGE_URL.format(league_id), proxies, proxy
+    )
     teams = scrape_from_page(standings_page_soup, "a", "class", TEAM_NAME_STANDINGS_CLASSES)
-    return [team_link.get("href") for team_link in teams]
+    return [team_link.get("href") for team_link in teams], proxy
 
 
 def build_roster_context(workbook, matchups_context):
@@ -358,13 +360,13 @@ def main():
     league_id = input(INPUT_LEAGUE_ID_MESSAGE)
 
     link = BASE_FANTASY_URL + league_id
-    main_page_soup = parse_full_page(link, proxies)[0]
+    main_page_soup, current_proxy = parse_full_page(link, proxies)
     league_scrapable = get_links(main_page_soup, link)
 
     while not league_scrapable:
         league_id = input(INPUT_LEAGUE_ID_MESSAGE)
         link = BASE_FANTASY_URL + league_id
-        main_page_soup = parse_full_page(link, proxies)[0]
+        main_page_soup, current_proxy = parse_full_page(link, proxies, current_proxy)
         league_scrapable = get_links(main_page_soup, link)
 
     team_links = league_scrapable[1]
@@ -386,7 +388,7 @@ def main():
     )
 
     if choice == FORMAT_CHOICES["xlsx"]:
-        schedule = schedule_scraper.get_schedule(proxies)
+        schedule, current_proxy = schedule_scraper.get_schedule(proxies, current_proxy)
         matchup_links = league_scrapable[0]
 
         filename = core_output.get_filename()
@@ -395,7 +397,7 @@ def main():
 
         roster_context = build_roster_context(workbook, matchups_context)
 
-        roster_workflow.process_links(
+        current_proxy = roster_workflow.process_links(
             roster_context,
             team_links,
             proxies,
@@ -404,6 +406,7 @@ def main():
             matchup_links,
             schedule,
             matchups_worksheet,
+            proxy=current_proxy,
         )
 
         workbook.close()
@@ -412,16 +415,17 @@ def main():
     else:
         playoffs_in_progress = main_page_soup.find(string=re.compile(PLAYOFFS_HEADER))
         if playoffs_in_progress:
-            team_links = get_links_from_standings(league_id, proxies)
+            team_links, current_proxy = get_links_from_standings(league_id, proxies, current_proxy)
 
         roster_context = build_roster_context(None, matchups_context)
 
-        roster_workflow.process_links(
+        current_proxy = roster_workflow.process_links(
             roster_context,
             team_links,
             proxies,
             choice,
             RESEARCH_STATS_PAGE,
+            proxy=current_proxy,
         )
 
         if choice == FORMAT_CHOICES["txt"]:

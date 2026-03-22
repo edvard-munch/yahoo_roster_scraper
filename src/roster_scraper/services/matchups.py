@@ -19,8 +19,13 @@ class MatchupsContext:
 
 
 def process_matchups(
-    context: MatchupsContext, matchup_links, team_totals_dict, proxies, worksheet
-) -> None:
+    context: MatchupsContext,
+    matchup_links,
+    team_totals_dict,
+    proxies,
+    worksheet,
+    proxy=None,
+) -> Any:
     columns = context.columns
     wide_column_width = context.wide_column_width
     number_of_matchups_processed_message = context.number_of_matchups_processed_message
@@ -36,9 +41,9 @@ def process_matchups(
     worksheet_row_number = 0
     worksheet_rows = [[]]
 
-    if proxies:
+    if proxies and not proxy:
         proxy = proxies_scraper.get_proxy(proxies)
-    else:
+    elif not proxies:
         proxy = None
 
     for link_index, link in enumerate(matchup_links):
@@ -100,3 +105,5 @@ def process_matchups(
 
     for index, row in enumerate(worksheet_rows):
         worksheet.write_row(index, 0, row)
+
+    return proxy

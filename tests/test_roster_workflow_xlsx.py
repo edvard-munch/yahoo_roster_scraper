@@ -29,24 +29,33 @@ def _build_xlsx_context(proxy_enabled, get_body_impl):
 
     if proxy_enabled:
         proxies_scraper = SimpleNamespace(
+            DEFAULT_PROXY_MAX_RETRIES=10,
+            PROXY_FAILURE_TARGET_PAGE="page",
             get_proxy=lambda proxies: (
                 get_proxy_calls.append(list(proxies))
                 or {"http": "1.1.1.1:80", "https": "1.1.1.1:80"}
             ),
-            get_response=lambda link, stats_page, proxies, proxy: (
+            get_response_with_retries=lambda link, stats_page, proxies, max_retries, failure_target, proxy=None: (
                 get_response_calls.append(
                     {
                         "link": link,
                         "stats_page": stats_page,
                         "proxies": list(proxies),
+                        "max_retries": max_retries,
+                        "failure_target": failure_target,
                         "proxy": proxy,
                     }
                 )
-                or DummyResponse("<html><body></body></html>")
+                or (
+                    DummyResponse("<html><body></body></html>"),
+                    {"http": "1.1.1.1:80", "https": "1.1.1.1:80"},
+                )
             ),
         )
     else:
         proxies_scraper = SimpleNamespace(
+            DEFAULT_PROXY_MAX_RETRIES=10,
+            PROXY_FAILURE_TARGET_PAGE="page",
             get_proxy=lambda proxies: (_ for _ in ()).throw(
                 AssertionError("get_proxy should not be called")
             ),
@@ -91,7 +100,11 @@ def _build_xlsx_context(proxy_enabled, get_body_impl):
         get_team_name=lambda soup, fallback_name: " Team/One ",
         get_headers=lambda soup: {"G": [], "Other": []},
         get_body=get_body_impl,
-        matchups_service=SimpleNamespace(process_matchups=lambda *args: matchup_calls.append(args)),
+        matchups_service=SimpleNamespace(
+            process_matchups=lambda *args, **kwargs: (
+                matchup_calls.append((args, kwargs)) or kwargs.get("proxy")
+            )
+        ),
         matchups_context=SimpleNamespace(tag="ctx"),
     )
 
@@ -132,12 +145,13 @@ def test_process_links_xlsx_builds_totals_and_dispatches_matchups_without_proxie
     assert len(get_response_calls) == 1
 
     assert len(matchup_calls) == 1
-    args = matchup_calls[0]
+    args, kwargs = matchup_calls[0]
     assert args[0].tag == "ctx"
     assert args[1] == ["https://example.com/m1"]
     assert args[2] == {"Team/One": {"G": 3.0}}
     assert args[3] == []
     assert args[4].name == "matchups"
+    assert kwargs["proxy"] is None
 
 
 def test_process_links_xlsx_uses_proxy_path_and_reports_missing_schedule_teams(
@@ -167,7 +181,10 @@ def test_process_links_xlsx_uses_proxy_path_and_reports_missing_schedule_teams(
         matchups_worksheet=SimpleNamespace(name="matchups"),
     )
 
-    assert len(get_proxy_calls) == 1
+    assert len(get_proxy_calls) == 0
     assert len(get_response_calls) == 1
+    assert get_response_calls[0]["proxy"] is None
     assert len(matchup_calls) == 1
+    _, kwargs = matchup_calls[0]
+    assert kwargs["proxy"] == {"http": "1.1.1.1:80", "https": "1.1.1.1:80"}
     assert any("Schedule teams not found" in message for message in printed)

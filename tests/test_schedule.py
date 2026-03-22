@@ -31,7 +31,7 @@ def test_get_schedule_parses_fixture_html_and_applies_aliases(
     response = SimpleNamespace(content=frozenpool_schedule_html.encode("utf-8"))
     monkeypatch.setattr(schedule.proxies, "get_response", lambda *args, **kwargs: response)
 
-    result = schedule.get_schedule(proxies_list=[])
+    result, _ = schedule.get_schedule(proxies_list=[])
 
     assert result["BOS"][schedule.GAMES_LEFT_THIS_WEEK_COLUMN] == 3
     assert result["MON"][schedule.GAMES_LEFT_THIS_WEEK_COLUMN] == 2
@@ -45,7 +45,7 @@ def test_get_schedule_returns_empty_when_schedule_table_missing(monkeypatch):
     response = SimpleNamespace(content=html.encode("utf-8"))
     monkeypatch.setattr(schedule.proxies, "get_response", lambda *args, **kwargs: response)
 
-    result = schedule.get_schedule(proxies_list=[])
+    result, _ = schedule.get_schedule(proxies_list=[])
 
     assert result == {}
 
@@ -54,7 +54,9 @@ def test_get_schedule_with_proxies_uses_retry_helper(monkeypatch, frozenpool_sch
     response = SimpleNamespace(content=frozenpool_schedule_html.encode("utf-8"))
     calls = []
 
-    def fake_get_response_with_retries(url, params, proxies_list, max_retries, failure_target):
+    def fake_get_response_with_retries(
+        url, params, proxies_list, max_retries, failure_target, proxy=None
+    ):
         calls.append(
             {
                 "url": url,
@@ -62,6 +64,7 @@ def test_get_schedule_with_proxies_uses_retry_helper(monkeypatch, frozenpool_sch
                 "proxies_list": proxies_list,
                 "max_retries": max_retries,
                 "failure_target": failure_target,
+                "proxy": proxy,
             }
         )
         return response, {"http": "1.1.1.1:80", "https": "1.1.1.1:80"}
@@ -72,7 +75,7 @@ def test_get_schedule_with_proxies_uses_retry_helper(monkeypatch, frozenpool_sch
         fake_get_response_with_retries,
     )
 
-    result = schedule.get_schedule(proxies_list=[{"http": "proxy", "https": "proxy"}])
+    result, _ = schedule.get_schedule(proxies_list=[{"http": "proxy", "https": "proxy"}])
 
     assert result["BOS"][schedule.GAMES_LEFT_THIS_WEEK_COLUMN] == 3
     assert len(calls) == 1
@@ -92,7 +95,7 @@ def test_get_schedule_with_proxies_returns_empty_on_retry_runtime_error(monkeypa
         lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("proxy retry failed")),
     )
 
-    result = schedule.get_schedule(proxies_list=[{"http": "proxy", "https": "proxy"}])
+    result, _ = schedule.get_schedule(proxies_list=[{"http": "proxy", "https": "proxy"}])
 
     assert result == {}
     assert any("proxy retry failed" in message for message in printed)

@@ -46,20 +46,21 @@ def apply_team_aliases(team_schedules):
     return team_schedules
 
 
-def get_schedule(proxies_list):
+def get_schedule(proxies_list, proxy=None):
     params = {}
     if proxies_list:
         try:
-            web, _ = proxies.get_response_with_retries(
+            web, proxy = proxies.get_response_with_retries(
                 SCHEDULE_URL,
                 params,
                 proxies_list,
                 max_retries=proxies.DEFAULT_PROXY_MAX_RETRIES,
                 failure_target=proxies.PROXY_FAILURE_TARGET_SCHEDULE,
+                proxy=proxy,
             )
         except RuntimeError as err:
             print(err)
-            return {}
+            return {}, None
     else:
         web = proxies.get_response(SCHEDULE_URL, params)
 
@@ -79,7 +80,7 @@ def get_schedule(proxies_list):
 
     if not schedule_table:
         print(SCHEDULE_NOT_AVAILABLE_MESSAGE)
-        return team_schedules
+        return team_schedules, proxy
 
     rows = schedule_table.find_all("tr")[2:]
     for row in rows:
@@ -108,4 +109,4 @@ def get_schedule(proxies_list):
         print(SCHEDULE_ALIAS_ENTRIES_ADDED_MESSAGE.format(alias_entries_added))
     preview = sorted(team_schedules.keys())[:SCHEDULE_DEBUG_PREVIEW_TEAMS]
     print(f"Schedule teams preview: {preview}")
-    return team_schedules
+    return team_schedules, proxy

@@ -64,7 +64,7 @@ def test_main_uses_standings_links_for_json_when_playoffs_header_present(monkeyp
     monkeypatch.setattr(
         cli,
         "get_links_from_standings",
-        lambda league_id, proxies: ["/standing/1", "/standing/2"],
+        lambda league_id, proxies, proxy=None: (["/standing/1", "/standing/2"], proxy),
     )
     monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
     monkeypatch.setattr(
@@ -151,7 +151,11 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
         "get_links",
         lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
     )
-    monkeypatch.setattr(cli.schedule_scraper, "get_schedule", lambda proxies: {"BOS": {"GL": 3}})
+    monkeypatch.setattr(
+        cli.schedule_scraper,
+        "get_schedule",
+        lambda proxies, proxy=None: ({"BOS": {"GL": 3}}, proxy),
+    )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
     monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
     monkeypatch.setattr(
@@ -171,3 +175,63 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
     assert args[3] == cli.FORMAT_CHOICES["xlsx"]
     assert args[4] == {"stat1": "AS", "stat2": "AS_2025"}
     assert opened_files == ["reports/test.xlsx"]
+
+
+def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
+    validate_results = iter(["Y", cli.FORMAT_CHOICES["xlsx"]])
+    inputs = iter(["19715"])
+    parse_calls = []
+    schedule_calls = []
+    process_calls = []
+
+    stable_proxy = {"http": "9.9.9.9:80", "https": "9.9.9.9:80"}
+
+    workbook = type(
+        "WorkbookSpy",
+        (),
+        {
+            "__init__": lambda self, filename: setattr(self, "filename", filename),
+            "add_worksheet": lambda self, name: type("WorksheetSpy", (), {"name": name})(),
+            "close": lambda self: None,
+        },
+    )
+
+    monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
+    monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
+    monkeypatch.setattr(cli.proxies_scraper, "scrape_proxies", lambda: [stable_proxy])
+    monkeypatch.setattr(
+        cli,
+        "parse_full_page",
+        lambda link, proxies, proxy=None, params=None: (
+            parse_calls.append({"link": link, "proxy": proxy})
+            or bs4.BeautifulSoup("<html></html>", "lxml"),
+            stable_proxy,
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "get_links",
+        lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
+    )
+    monkeypatch.setattr(
+        cli.schedule_scraper,
+        "get_schedule",
+        lambda proxies, proxy=None: (
+            schedule_calls.append({"proxy": proxy}) or ({"BOS": {"GL": 3}}, proxy)
+        ),
+    )
+    monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
+    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(
+        cli.roster_workflow,
+        "process_links",
+        lambda *args, **kwargs: process_calls.append(kwargs) or kwargs["proxy"],
+    )
+    monkeypatch.setattr(cli.core_output, "get_filename", lambda: "reports/test.xlsx")
+    monkeypatch.setattr(cli.core_output, "open_file", lambda filename: None)
+
+    cli.main()
+
+    assert parse_calls[0]["proxy"] is None
+    assert schedule_calls[0]["proxy"] == stable_proxy
+    assert process_calls[0]["proxy"] == stable_proxy
