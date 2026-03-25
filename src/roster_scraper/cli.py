@@ -139,13 +139,23 @@ def scrape_from_page(soup, element_type, attr_type, attr_name):
 
 
 def get_team_name(soup, fallback_name="Unknown Team"):
+    def clean_name(name):
+        return re.sub(r"[\ue000-\uf8ff]", "", name).strip()[:30]
+
     name_links = scrape_from_page(soup, "span", "class", re.compile(TEAM_NAME_CLASSES))
     if name_links:
-        return name_links[0].text.strip()[:30]
+        return clean_name(name_links[0].text)
+
+    fallback_name_span = soup.select_one("span.F-reset.Nowrap")
+    if fallback_name_span:
+        return clean_name(fallback_name_span.get_text(strip=True))
 
     title = soup.title.get_text(strip=True) if soup.title else None
     if title:
-        return title.split("|")[0].strip()[:30]
+        title_text = title.split("|")[0].strip()
+        if " - " in title_text:
+            return clean_name(title_text.split(" - ", 1)[1])
+        return clean_name(title_text)
 
     return fallback_name[:30]
 

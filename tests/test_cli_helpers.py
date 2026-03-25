@@ -28,6 +28,28 @@ def test_get_team_name_uses_title_when_span_missing():
     assert name == "Title Team"
 
 
+def test_get_team_name_extracts_team_part_from_hyphenated_title():
+    soup = bs4.BeautifulSoup(
+        "<html><head><title>FNH 25-26 - Brewers team | Fantasy Hockey | Yahoo! Sports</title></head></html>",
+        "lxml",
+    )
+
+    name = cli.get_team_name(soup)
+
+    assert name == "Brewers team"
+
+
+def test_get_team_name_uses_fallback_span_and_removes_private_glyphs():
+    soup = bs4.BeautifulSoup(
+        "<html><body><span class='F-reset Nowrap'>Brewers team \ue002</span></body></html>",
+        "lxml",
+    )
+
+    name = cli.get_team_name(soup)
+
+    assert name == "Brewers team"
+
+
 def test_get_team_name_uses_truncated_fallback_when_needed():
     fallback_name = "A" * 40
     soup = bs4.BeautifulSoup("<html><head></head><body></body></html>", "lxml")
