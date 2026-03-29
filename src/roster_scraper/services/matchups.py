@@ -48,10 +48,22 @@ def process_matchups(
 
     for link_index, link in enumerate(matchup_links):
         soup, proxy = parse_full_page(link + matchup_totals_parameter, proxies, proxy)
-        table = scrape_from_page(soup, "table", "class", matchup_result_classes)[0]
+        tables = scrape_from_page(soup, "table", "class", matchup_result_classes)
+
+        if not tables:
+            print(f"Skipping matchup: result table not found ({link})")
+            continue
+
+        table = tables[0]
+        thead = table.find("thead")
+        tbody = table.find("tbody")
+
+        if not thead or not tbody:
+            print(f"Skipping matchup: malformed table structure ({link})")
+            continue
 
         if not headers:
-            headers = table.find("thead").find_all("th")
+            headers = thead.find_all("th")
 
             for header in headers:
                 worksheet_rows[worksheet_row_number].append(header.string)
@@ -59,7 +71,7 @@ def process_matchups(
             worksheet_row_number += 1
             worksheet_rows.append([])
 
-        rows = table.find("tbody").find_all("tr")
+        rows = tbody.find_all("tr")
         number_of_cells = 0
 
         for row in rows:

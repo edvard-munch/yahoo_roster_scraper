@@ -172,3 +172,36 @@ def test_process_matchups_handles_missing_team_span_and_writes_spacer_rows():
 
     spacer_rows = [row for _, _, row in worksheet.rows if row == [None, None, None]]
     assert len(spacer_rows) == 1
+
+
+def test_process_matchups_skips_missing_table_and_continues(monkeypatch):
+    worksheet = WorksheetSpy()
+    printed = []
+    soups = [
+        bs4.BeautifulSoup("<html><body><p>no table</p></body></html>", "lxml"),
+        _build_soup("3", "4"),
+    ]
+
+    monkeypatch.setattr(
+        "builtins.print",
+        lambda *args, **kwargs: printed.append(" ".join(str(arg) for arg in args)),
+    )
+
+    def parse_full_page(*args, **kwargs):
+        return soups.pop(0), None
+
+    context = _build_context(parse_full_page)
+
+    matchups.process_matchups(
+        context,
+        matchup_links=["https://example.com/m1", "https://example.com/m2"],
+        team_totals_dict={"Team A": {"G": 10.0, "A": 20.0}},
+        proxies=[],
+        worksheet=worksheet,
+    )
+
+    assert any(
+        "Skipping matchup: result table not found (https://example.com/m1)" in m for m in printed
+    )
+    data_rows = [row for _, _, row in worksheet.rows if row and row[0] == "Team A"]
+    assert data_rows[0][:3] == ["Team A", 13.0, 24.0]
