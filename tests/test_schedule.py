@@ -79,6 +79,24 @@ def test_get_schedule_with_proxies_uses_retry_helper(monkeypatch, frozenpool_sch
     assert calls[0]["failure_target"] == schedule.proxies.PROXY_FAILURE_TARGET_SCHEDULE
 
 
+def test_get_schedule_uses_override_url_when_provided(monkeypatch, frozenpool_schedule_html):
+    response = SimpleNamespace(content=frozenpool_schedule_html.encode("utf-8"))
+    calls = []
+
+    monkeypatch.setattr(
+        schedule.proxies,
+        "get_response",
+        lambda url, params: calls.append({"url": url, "params": params}) or response,
+    )
+
+    schedule.get_schedule(
+        proxies_list=[],
+        schedule_url="https://example.com/custom-schedule",
+    )
+
+    assert calls[0]["url"] == "https://example.com/custom-schedule"
+
+
 def test_get_schedule_with_proxies_returns_empty_on_retry_runtime_error(monkeypatch):
     printed = []
 

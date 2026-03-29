@@ -123,7 +123,7 @@ def test_main_runs_google_mode_without_opening_local_file(monkeypatch):
 
 def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
     validate_results = iter(["n", cli.FORMAT_CHOICES["xlsx"]])
-    inputs = iter(["19715"])
+    inputs = iter(["19715", ""])
     process_calls = []
     opened_files = []
 
@@ -154,7 +154,7 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
     monkeypatch.setattr(
         cli.schedule_scraper,
         "get_schedule",
-        lambda proxies, proxy=None: ({"BOS": {"GL": 3}}, proxy),
+        lambda proxies, proxy=None, schedule_url=None: ({"BOS": {"GL": 3}}, proxy),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
     monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
@@ -179,7 +179,7 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
 
 def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
     validate_results = iter(["Y", cli.FORMAT_CHOICES["xlsx"]])
-    inputs = iter(["19715"])
+    inputs = iter(["19715", ""])
     parse_calls = []
     schedule_calls = []
     process_calls = []
@@ -216,8 +216,9 @@ def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
     monkeypatch.setattr(
         cli.schedule_scraper,
         "get_schedule",
-        lambda proxies, proxy=None: (
-            schedule_calls.append({"proxy": proxy}) or ({"BOS": {"GL": 3}}, proxy)
+        lambda proxies, proxy=None, schedule_url=None: (
+            schedule_calls.append({"proxy": proxy, "schedule_url": schedule_url})
+            or ({"BOS": {"GL": 3}}, proxy)
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
@@ -234,4 +235,51 @@ def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
 
     assert parse_calls[0]["proxy"] is None
     assert schedule_calls[0]["proxy"] == stable_proxy
+    assert schedule_calls[0]["schedule_url"] is None
     assert process_calls[0]["proxy"] == stable_proxy
+
+
+def test_main_passes_custom_schedule_url_override_to_schedule_scraper(monkeypatch):
+    validate_results = iter(["n", cli.FORMAT_CHOICES["xlsx"]])
+    inputs = iter(["19715", "https://example.com/custom-schedule"])
+    schedule_calls = []
+
+    workbook = type(
+        "WorkbookSpy",
+        (),
+        {
+            "__init__": lambda self, filename: setattr(self, "filename", filename),
+            "add_worksheet": lambda self, name: type("WorksheetSpy", (), {"name": name})(),
+            "close": lambda self: None,
+        },
+    )
+
+    monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
+    monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
+    monkeypatch.setattr(
+        cli,
+        "parse_full_page",
+        lambda *args, **kwargs: (bs4.BeautifulSoup("<html></html>", "lxml"), None),
+    )
+    monkeypatch.setattr(
+        cli,
+        "get_links",
+        lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
+    )
+    monkeypatch.setattr(
+        cli.schedule_scraper,
+        "get_schedule",
+        lambda proxies, proxy=None, schedule_url=None: (
+            schedule_calls.append({"proxy": proxy, "schedule_url": schedule_url})
+            or ({"BOS": {"GL": 3}}, proxy)
+        ),
+    )
+    monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
+    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(cli.roster_workflow, "process_links", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cli.core_output, "get_filename", lambda: "reports/test.xlsx")
+    monkeypatch.setattr(cli.core_output, "open_file", lambda filename: None)
+
+    cli.main()
+
+    assert schedule_calls[0]["schedule_url"] == "https://example.com/custom-schedule"

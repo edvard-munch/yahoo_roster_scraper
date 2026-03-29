@@ -54,6 +54,7 @@ FORMAT_CHOICE_MESSAGE = (
 
 PROXIES_CHOICE_MESSAGE = "Use proxies? Y/n:\n"
 INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
+INPUT_SCHEDULE_URL_MESSAGE = "Input schedule URL override (Enter for default):\n"
 INCORRECT_CHOICE_MESSAGE = "Please select a correct option"
 LEAGUE_ID_INCORRECT_MESSAGE = "League with this ID does not exist or not publicly viewable"
 LEAGUE_SCRAPING_SUCCESS_MESSAGE = "League's main page scraped!"
@@ -397,7 +398,13 @@ def main():
     )
 
     if choice == FORMAT_CHOICES["xlsx"]:
-        schedule, current_proxy = schedule_scraper.get_schedule(proxies, current_proxy)
+        schedule_url = input(INPUT_SCHEDULE_URL_MESSAGE).strip()
+        schedule_url_override = schedule_url or None
+        schedule, current_proxy = schedule_scraper.get_schedule(
+            proxies,
+            current_proxy,
+            schedule_url=schedule_url_override,
+        )
         matchup_links = league_scrapable[0]
 
         filename = core_output.get_filename()

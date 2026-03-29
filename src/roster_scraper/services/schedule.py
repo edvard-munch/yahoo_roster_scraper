@@ -46,12 +46,13 @@ def apply_team_aliases(team_schedules):
     return team_schedules
 
 
-def get_schedule(proxies_list, proxy=None):
+def get_schedule(proxies_list, proxy=None, schedule_url=None):
+    url = schedule_url or SCHEDULE_URL
     params = {}
     if proxies_list:
         try:
             web, proxy = proxies.get_response_with_retries(
-                SCHEDULE_URL,
+                url,
                 params,
                 proxies_list,
                 failure_target=proxies.PROXY_FAILURE_TARGET_SCHEDULE,
@@ -61,7 +62,7 @@ def get_schedule(proxies_list, proxy=None):
             print(err)
             return {}, None
     else:
-        web = proxies.get_response(SCHEDULE_URL, params)
+        web = proxies.get_response(url, params)
 
     soup = bs4.BeautifulSoup(web.content, PARSER)
     team_schedules = {}
