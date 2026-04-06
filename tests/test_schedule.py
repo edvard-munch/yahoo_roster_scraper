@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+import datetime
 
 from roster_scraper.services import schedule
 
@@ -95,6 +96,30 @@ def test_get_schedule_uses_override_url_when_provided(monkeypatch, frozenpool_sc
     )
 
     assert calls[0]["url"] == "https://example.com/custom-schedule"
+
+
+def test_build_schedule_url_uses_date_range_when_provided():
+    result = schedule.build_schedule_url(
+        start_date=datetime.date(2026, 3, 25),
+        end_date=datetime.date(2026, 4, 2),
+    )
+
+    assert "report=Custom" in result
+    assert "startdate=2026-03-25" in result
+    assert "enddate=2026-04-02" in result
+
+
+def test_build_schedule_url_keeps_override_and_applies_range():
+    result = schedule.build_schedule_url(
+        schedule_url="https://example.com/path?report=Remaining+wk",
+        start_date=datetime.date(2026, 5, 1),
+        end_date=datetime.date(2026, 5, 10),
+    )
+
+    assert result.startswith("https://example.com/path?")
+    assert "report=Custom" in result
+    assert "startdate=2026-05-01" in result
+    assert "enddate=2026-05-10" in result
 
 
 def test_get_schedule_with_proxies_returns_empty_on_retry_runtime_error(monkeypatch):

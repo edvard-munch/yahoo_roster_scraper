@@ -82,6 +82,7 @@ MATCHUP_DATE_RANGE_PATTERNS = [
         r"(?P<start_month>[A-Za-z]{3,9})\s+(?P<start_day>\d{1,2})(?:,\s*(?P<start_year>\d{4}))?\s*-\s*(?P<end_day>\d{1,2})(?:,\s*(?P<end_year>\d{4}))?"
     ),
 ]
+MATCHUP_WEEK_QUERY_PATTERN = re.compile(r"[?&]week=(?P<week>\d+)")
 STANDINGS_PAGE_URL = (
     "https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand"
 )
@@ -92,6 +93,14 @@ PLAYER_LINK_CLASSES = "Nowrap name F-link playernote"
 TEAM_AND_POSITION_SPAN_CLASS = "Fz-xxs"
 
 MATCHUP_TOTALS_PARAMETER = "&date=total"
+MATCHUP_RANGE_DAYS_THRESHOLD = 7
+SCHEDULE_URL_OVERRIDE_MESSAGE = "Using schedule URL override: {}"
+MATCHUP_RANGE_DETECTED_MESSAGE = "Detected matchup range: {} -> {} ({} days)"
+MATCHUP_RANGE_MODE_MESSAGE = "Using matchup range for schedule scraping"
+MATCHUP_WEEKLY_MODE_MESSAGE = "Using default weekly schedule scraping"
+MATCHUP_RANGE_NOT_FOUND_MESSAGE = (
+    "Could not detect matchup date range; using default weekly schedule ({})"
+)
 EMPTY_SPOT_STRING = "Empty"
 EMPTY_CELL = "-"
 
@@ -384,9 +393,43 @@ def parse_matchup_date_range_from_soup(soup, today=None):
     return parse_matchup_date_range_text(soup.get_text(" ", strip=True), today=today)
 
 
-def get_matchup_date_range(matchup_link, proxies, proxy=None, today=None):
+def extract_matchup_week(matchup_link):
+    if not matchup_link:
+        return None
+
+    week_match = MATCHUP_WEEK_QUERY_PATTERN.search(matchup_link)
+    if not week_match:
+        return None
+
+    return int(week_match.group("week"))
+
+
+def parse_matchup_date_range_from_league_soup(league_soup, matchup_week, today=None):
+    if not league_soup or not matchup_week:
+        return None
+
+    text = league_soup.get_text(" ", strip=True)
+    week_pattern = re.compile(
+        rf"Week\s+{matchup_week}\s*:\s*(?P<range>.*?)(?:Week\s+\d+\s*:|$)",
+        re.IGNORECASE,
+    )
+    week_match = week_pattern.search(text)
+    if not week_match:
+        return None
+
+    return parse_matchup_date_range_text(week_match.group("range"), today=today)
+
+
+def get_matchup_date_range(matchup_link, proxies, proxy=None, today=None, league_soup=None):
     soup, proxy = parse_full_page(matchup_link, proxies, proxy)
     date_range = parse_matchup_date_range_from_soup(soup, today=today)
+
+    if date_range:
+        return date_range, proxy
+
+    matchup_week = extract_matchup_week(matchup_link)
+    date_range = parse_matchup_date_range_from_league_soup(league_soup, matchup_week, today=today)
+
     return date_range, proxy
 
 
@@ -456,14 +499,49 @@ def main():
     )
 
     if choice == FORMAT_CHOICES["xlsx"]:
+        matchup_links = league_scrapable[0]
+
         schedule_url = input(INPUT_SCHEDULE_URL_MESSAGE).strip()
         schedule_url_override = schedule_url or None
+
+        if schedule_url_override:
+            print(SCHEDULE_URL_OVERRIDE_MESSAGE.format(schedule_url_override))
+
+        start_date = None
+        end_date = None
+        if not schedule_url_override and matchup_links:
+            matchup_date_range, current_proxy = get_matchup_date_range(
+                matchup_links[0],
+                proxies,
+                current_proxy,
+                league_soup=main_page_soup,
+            )
+            if matchup_date_range:
+                parsed_start_date, parsed_end_date = matchup_date_range
+                duration_days = (parsed_end_date - parsed_start_date).days + 1
+                print(
+                    MATCHUP_RANGE_DETECTED_MESSAGE.format(
+                        parsed_start_date,
+                        parsed_end_date,
+                        duration_days,
+                    )
+                )
+                if duration_days > MATCHUP_RANGE_DAYS_THRESHOLD:
+                    start_date = parsed_start_date
+                    end_date = parsed_end_date
+                    print(MATCHUP_RANGE_MODE_MESSAGE)
+                else:
+                    print(MATCHUP_WEEKLY_MODE_MESSAGE)
+            else:
+                print(MATCHUP_RANGE_NOT_FOUND_MESSAGE.format(matchup_links[0]))
+
         schedule, current_proxy = schedule_scraper.get_schedule(
             proxies,
             current_proxy,
             schedule_url=schedule_url_override,
+            start_date=start_date,
+            end_date=end_date,
         )
-        matchup_links = league_scrapable[0]
 
         filename = core_output.get_filename()
         workbook = xlsxwriter.Workbook(filename)

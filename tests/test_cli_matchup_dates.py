@@ -44,3 +44,47 @@ def test_get_matchup_date_range_returns_parsed_range_and_proxy(monkeypatch):
 
     assert date_range == (datetime.date(2026, 4, 1), datetime.date(2026, 4, 9))
     assert proxy == current_proxy
+
+
+def test_extract_matchup_week_from_query_string():
+    result = cli.extract_matchup_week(
+        "https://hockey.fantasysports.yahoo.com/hockey/10524/matchup?week=24&mid1=1&mid2=12"
+    )
+
+    assert result == 24
+
+
+def test_parse_matchup_date_range_from_league_soup_uses_week_block():
+    soup = bs4.BeautifulSoup(
+        "<html><body>Week 23: Mar 30 - Apr 5 Week 24: Apr 6 - Apr 16 Week 25: Apr 17 - Apr 23</body></html>",
+        "lxml",
+    )
+
+    result = cli.parse_matchup_date_range_from_league_soup(
+        soup,
+        matchup_week=24,
+        today=datetime.date(2026, 4, 1),
+    )
+
+    assert result == (datetime.date(2026, 4, 6), datetime.date(2026, 4, 16))
+
+
+def test_get_matchup_date_range_falls_back_to_league_soup_when_matchup_page_has_no_dates(
+    monkeypatch,
+):
+    matchup_soup = bs4.BeautifulSoup("<html><body>Week 24</body></html>", "lxml")
+    league_soup = bs4.BeautifulSoup(
+        "<html><body>Week 24: Apr 6 - Apr 16 Week 25: Apr 17 - Apr 23</body></html>",
+        "lxml",
+    )
+
+    monkeypatch.setattr(cli, "parse_full_page", lambda *args, **kwargs: (matchup_soup, None))
+
+    date_range, _ = cli.get_matchup_date_range(
+        "https://hockey.fantasysports.yahoo.com/hockey/10524/matchup?week=24&mid1=1&mid2=12",
+        proxies=[],
+        today=datetime.date(2026, 4, 1),
+        league_soup=league_soup,
+    )
+
+    assert date_range == (datetime.date(2026, 4, 6), datetime.date(2026, 4, 16))

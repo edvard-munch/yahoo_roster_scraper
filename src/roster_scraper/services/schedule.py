@@ -1,4 +1,8 @@
 import re
+from urllib.parse import parse_qsl
+from urllib.parse import urlencode
+from urllib.parse import urlsplit
+from urllib.parse import urlunsplit
 
 import bs4
 
@@ -17,6 +21,7 @@ SCHEDULE_NOT_AVAILABLE_MESSAGE = "Schedule table not found on source page."
 SCHEDULE_TEAMS_SCRAPED_MESSAGE = "Schedule teams scraped (raw): {}"
 SCHEDULE_TEAMS_LOADED_MESSAGE = "Schedule teams loaded (after aliases): {}"
 SCHEDULE_ALIAS_ENTRIES_ADDED_MESSAGE = "Schedule alias entries added: {}"
+SCHEDULE_SOURCE_URL_MESSAGE = "Schedule source URL: {}"
 TEAM_CODE_ALIASES = {
     "MON": "MTL",
     "ANH": "ANA",
@@ -46,8 +51,33 @@ def apply_team_aliases(team_schedules):
     return team_schedules
 
 
-def get_schedule(proxies_list, proxy=None, schedule_url=None):
+def build_schedule_url(schedule_url=None, start_date=None, end_date=None):
     url = schedule_url or SCHEDULE_URL
+
+    if not start_date or not end_date:
+        return url
+
+    parsed_url = urlsplit(url)
+    query = dict(parse_qsl(parsed_url.query))
+    query["report"] = "Custom"
+    query["startdate"] = start_date.strftime("%Y-%m-%d")
+    query["enddate"] = end_date.strftime("%Y-%m-%d")
+    updated_query = urlencode(query)
+
+    return urlunsplit(
+        (
+            parsed_url.scheme,
+            parsed_url.netloc,
+            parsed_url.path,
+            updated_query,
+            parsed_url.fragment,
+        )
+    )
+
+
+def get_schedule(proxies_list, proxy=None, schedule_url=None, start_date=None, end_date=None):
+    url = build_schedule_url(schedule_url, start_date, end_date)
+    print(SCHEDULE_SOURCE_URL_MESSAGE.format(url))
     params = {}
     if proxies_list:
         try:
