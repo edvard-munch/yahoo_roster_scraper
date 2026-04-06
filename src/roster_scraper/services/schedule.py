@@ -22,6 +22,11 @@ SCHEDULE_TEAMS_SCRAPED_MESSAGE = "Schedule teams scraped (raw): {}"
 SCHEDULE_TEAMS_LOADED_MESSAGE = "Schedule teams loaded (after aliases): {}"
 SCHEDULE_ALIAS_ENTRIES_ADDED_MESSAGE = "Schedule alias entries added: {}"
 SCHEDULE_SOURCE_URL_MESSAGE = "Schedule source URL: {}"
+SCHEDULE_CUSTOM_REPORT_VALUE = "Custom"
+SCHEDULE_REPORT_QUERY_KEY = "report"
+SCHEDULE_START_DATE_QUERY_KEY = "startdate"
+SCHEDULE_END_DATE_QUERY_KEY = "enddate"
+SCHEDULE_DATE_FORMAT = "%Y-%m-%d"
 TEAM_CODE_ALIASES = {
     "MON": "MTL",
     "ANH": "ANA",
@@ -59,9 +64,9 @@ def build_schedule_url(schedule_url=None, start_date=None, end_date=None):
 
     parsed_url = urlsplit(url)
     query = dict(parse_qsl(parsed_url.query))
-    query["report"] = "Custom"
-    query["startdate"] = start_date.strftime("%Y-%m-%d")
-    query["enddate"] = end_date.strftime("%Y-%m-%d")
+    query[SCHEDULE_REPORT_QUERY_KEY] = SCHEDULE_CUSTOM_REPORT_VALUE
+    query[SCHEDULE_START_DATE_QUERY_KEY] = start_date.strftime(SCHEDULE_DATE_FORMAT)
+    query[SCHEDULE_END_DATE_QUERY_KEY] = end_date.strftime(SCHEDULE_DATE_FORMAT)
     updated_query = urlencode(query)
 
     return urlunsplit(

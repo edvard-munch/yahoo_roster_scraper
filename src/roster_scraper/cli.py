@@ -83,6 +83,8 @@ MATCHUP_DATE_RANGE_PATTERNS = [
     ),
 ]
 MATCHUP_WEEK_QUERY_PATTERN = re.compile(r"[?&]week=(?P<week>\d+)")
+MATCHUP_WEEK_BLOCK_PATTERN_TEMPLATE = r"Week\s+{week}\s*:\s*(?P<range>.*?)(?:" r"Week\s+\d+\s*:|$)"
+MATCHUP_DATE_FORMATS = ("%b %d %Y", "%B %d %Y")
 STANDINGS_PAGE_URL = (
     "https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand"
 )
@@ -350,7 +352,7 @@ def get_links_from_standings(league_id, proxies, proxy=None):
 
 
 def _build_matchup_date(month, day, year):
-    for fmt in ("%b %d %Y", "%B %d %Y"):
+    for fmt in MATCHUP_DATE_FORMATS:
         try:
             return datetime.datetime.strptime(f"{month} {day} {year}", fmt).date()
         except ValueError:
@@ -410,7 +412,7 @@ def parse_matchup_date_range_from_league_soup(league_soup, matchup_week, today=N
 
     text = league_soup.get_text(" ", strip=True)
     week_pattern = re.compile(
-        rf"Week\s+{matchup_week}\s*:\s*(?P<range>.*?)(?:Week\s+\d+\s*:|$)",
+        MATCHUP_WEEK_BLOCK_PATTERN_TEMPLATE.format(week=matchup_week),
         re.IGNORECASE,
     )
     week_match = week_pattern.search(text)
