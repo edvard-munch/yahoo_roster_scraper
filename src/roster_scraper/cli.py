@@ -74,6 +74,14 @@ HEADERS_CLASSES = "Alt Last"
 TEAM_NAME_CLASSES = "Navtarget No-pbot F-reset No-case Fz-35 Fw-b team-name"
 TEAM_NAME_STANDINGS_CLASSES = "Grid-u F-reset Ell Mawpx-250"
 PLAYOFFS_HEADER = "Championship Bracket"
+MATCHUP_DATE_RANGE_PATTERNS = [
+    re.compile(
+        r"(?P<start_month>[A-Za-z]{3,9})\s+(?P<start_day>\d{1,2})(?:,\s*(?P<start_year>\d{4}))?\s*-\s*(?P<end_month>[A-Za-z]{3,9})\s+(?P<end_day>\d{1,2})(?:,\s*(?P<end_year>\d{4}))?"
+    ),
+    re.compile(
+        r"(?P<start_month>[A-Za-z]{3,9})\s+(?P<start_day>\d{1,2})(?:,\s*(?P<start_year>\d{4}))?\s*-\s*(?P<end_day>\d{1,2})(?:,\s*(?P<end_year>\d{4}))?"
+    ),
+]
 STANDINGS_PAGE_URL = (
     "https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand"
 )
@@ -330,6 +338,56 @@ def get_links_from_standings(league_id, proxies, proxy=None):
     )
     teams = scrape_from_page(standings_page_soup, "a", "class", TEAM_NAME_STANDINGS_CLASSES)
     return [team_link.get("href") for team_link in teams], proxy
+
+
+def _build_matchup_date(month, day, year):
+    for fmt in ("%b %d %Y", "%B %d %Y"):
+        try:
+            return datetime.datetime.strptime(f"{month} {day} {year}", fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def parse_matchup_date_range_text(raw_text, today=None):
+    if not raw_text:
+        return None
+
+    default_year = (today or datetime.date.today()).year
+
+    for pattern in MATCHUP_DATE_RANGE_PATTERNS:
+        match = pattern.search(raw_text)
+        if not match:
+            continue
+
+        groups = match.groupdict()
+        start_month = groups["start_month"]
+        start_day = groups["start_day"]
+        start_year = int(groups.get("start_year") or groups.get("end_year") or default_year)
+
+        end_month = groups.get("end_month") or start_month
+        end_day = groups["end_day"]
+        end_year = int(groups.get("end_year") or start_year)
+
+        start_date = _build_matchup_date(start_month, start_day, start_year)
+        end_date = _build_matchup_date(end_month, end_day, end_year)
+
+        if start_date and end_date:
+            return start_date, end_date
+
+    return None
+
+
+def parse_matchup_date_range_from_soup(soup, today=None):
+    if not soup:
+        return None
+    return parse_matchup_date_range_text(soup.get_text(" ", strip=True), today=today)
+
+
+def get_matchup_date_range(matchup_link, proxies, proxy=None, today=None):
+    soup, proxy = parse_full_page(matchup_link, proxies, proxy)
+    date_range = parse_matchup_date_range_from_soup(soup, today=today)
+    return date_range, proxy
 
 
 def build_roster_context(workbook, matchups_context):
