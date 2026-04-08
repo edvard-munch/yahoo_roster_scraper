@@ -99,6 +99,7 @@ MATCHUP_RANGE_DAYS_THRESHOLD = 7
 SCHEDULE_URL_OVERRIDE_MESSAGE = "Using schedule URL override: {}"
 MATCHUP_RANGE_DETECTED_MESSAGE = "Detected matchup range: {} -> {} ({} days)"
 MATCHUP_RANGE_MODE_MESSAGE = "Using matchup range for schedule scraping"
+MATCHUP_RANGE_EFFECTIVE_MESSAGE = "Effective remaining matchup range: {} -> {}"
 MATCHUP_WEEKLY_MODE_MESSAGE = "Using default weekly schedule scraping"
 MATCHUP_RANGE_NOT_FOUND_MESSAGE = (
     "Could not detect matchup date range; using default weekly schedule ({})"
@@ -529,9 +530,11 @@ def main():
                     )
                 )
                 if duration_days > MATCHUP_RANGE_DAYS_THRESHOLD:
-                    start_date = parsed_start_date
+                    today = datetime.date.today()
+                    start_date = max(today, parsed_start_date)
                     end_date = parsed_end_date
                     print(MATCHUP_RANGE_MODE_MESSAGE)
+                    print(MATCHUP_RANGE_EFFECTIVE_MESSAGE.format(start_date, end_date))
                 else:
                     print(MATCHUP_WEEKLY_MODE_MESSAGE)
             else:

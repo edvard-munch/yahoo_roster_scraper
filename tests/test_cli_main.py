@@ -315,6 +315,15 @@ def test_main_uses_matchup_date_range_for_longer_than_week_xlsx(monkeypatch):
 
     monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
+
+    real_date = datetime.date
+
+    class FakeDate(datetime.date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 4, 1)
+
+    monkeypatch.setattr(cli.datetime, "date", FakeDate)
     monkeypatch.setattr(
         cli,
         "parse_full_page",
@@ -353,5 +362,60 @@ def test_main_uses_matchup_date_range_for_longer_than_week_xlsx(monkeypatch):
     cli.main()
 
     assert schedule_calls[0]["schedule_url"] is None
-    assert schedule_calls[0]["start_date"] == datetime.date(2026, 3, 25)
+    assert schedule_calls[0]["start_date"] == real_date(2026, 4, 1)
     assert schedule_calls[0]["end_date"] == datetime.date(2026, 4, 4)
+
+
+def test_main_falls_back_to_weekly_schedule_when_matchup_range_not_detected(monkeypatch):
+    validate_results = iter(["n", cli.FORMAT_CHOICES["xlsx"]])
+    inputs = iter(["19715", ""])
+    schedule_calls = []
+
+    workbook = type(
+        "WorkbookSpy",
+        (),
+        {
+            "__init__": lambda self, filename: setattr(self, "filename", filename),
+            "add_worksheet": lambda self, name: type("WorksheetSpy", (), {"name": name})(),
+            "close": lambda self: None,
+        },
+    )
+
+    monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
+    monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
+    monkeypatch.setattr(
+        cli,
+        "parse_full_page",
+        lambda *args, **kwargs: (bs4.BeautifulSoup("<html></html>", "lxml"), None),
+    )
+    monkeypatch.setattr(
+        cli,
+        "get_links",
+        lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
+    )
+    monkeypatch.setattr(cli, "get_matchup_date_range", lambda *args, **kwargs: (None, None))
+    monkeypatch.setattr(
+        cli.schedule_scraper,
+        "get_schedule",
+        lambda proxies, proxy=None, schedule_url=None, start_date=None, end_date=None: (
+            schedule_calls.append(
+                {
+                    "schedule_url": schedule_url,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                }
+            )
+            or ({"BOS": {"GL": 3}}, proxy)
+        ),
+    )
+    monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
+    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(cli.roster_workflow, "process_links", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cli.core_output, "get_filename", lambda: "reports/test.xlsx")
+    monkeypatch.setattr(cli.core_output, "open_file", lambda filename: None)
+
+    cli.main()
+
+    assert schedule_calls[0]["schedule_url"] is None
+    assert schedule_calls[0]["start_date"] is None
+    assert schedule_calls[0]["end_date"] is None
