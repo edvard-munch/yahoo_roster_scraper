@@ -2,6 +2,7 @@ import bs4
 import json
 from dataclasses import dataclass
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 
@@ -118,6 +119,7 @@ def process_links(
         print(number_of_teams_processed_message.format(index + 1, len(links)))
 
     if choice == format_choices["json"] or choice == format_choices["google_sheets"]:
+        Path(positions_filename).parent.mkdir(parents=True, exist_ok=True)
         with open(positions_filename, "w") as text_file:
             json.dump(json_dump_data, text_file, indent=2)
 
