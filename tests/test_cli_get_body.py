@@ -14,7 +14,7 @@ def test_get_body_uses_direct_team_schedule_match():
     )
     schedule = {"BOS": {cli.schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN: 3}}
 
-    body = cli.get_body(soup, schedule)
+    body = cli.get_body(soup, schedule, season_in_progress=True)
 
     assert body[-1] == [3]
 
@@ -25,7 +25,7 @@ def test_get_body_uses_alias_schedule_match():
     )
     schedule = {"MTL": {cli.schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN: 2}}
 
-    body = cli.get_body(soup, schedule)
+    body = cli.get_body(soup, schedule, season_in_progress=True)
 
     assert body[-1] == [2]
 
@@ -38,7 +38,12 @@ def test_get_body_records_missing_schedule_team_and_sets_zero():
 
     schedule = {"BOS": {cli.schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN: 3}}
 
-    body = cli.get_body(soup, schedule=schedule, missing_schedule_teams=missing_schedule_teams)
+    body = cli.get_body(
+        soup,
+        schedule=schedule,
+        missing_schedule_teams=missing_schedule_teams,
+        season_in_progress=True,
+    )
 
     assert body[-1] == [0]
     assert missing_schedule_teams == {"XYZ"}
@@ -51,7 +56,7 @@ def test_get_body_skips_not_playing_rows():
     )
     schedule = {"BOS": {cli.schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN: 3}}
 
-    body = cli.get_body(soup, schedule)
+    body = cli.get_body(soup, schedule, season_in_progress=True)
 
     flattened = [item for column in body for item in column]
     assert "Healthy Player" in flattened

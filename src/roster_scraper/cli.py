@@ -7,6 +7,8 @@ import sys
 import subprocess
 import datetime
 import xlsxwriter
+from dataclasses import dataclass
+from functools import partial
 
 from roster_scraper.services import positions as positions_scraper
 from roster_scraper.services import proxies as proxies_scraper
@@ -19,27 +21,23 @@ from roster_scraper.core import parsing as core_parsing
 
 
 BASE_FANTASY_URL = "https://hockey.fantasysports.yahoo.com/hockey/"
-SEASON_IN_PROGRESS = True
-SEASON_JUST_STARTED = (
-    False  # if stats are not representative enough yet, use stats from the last season
-)
-
-AVG_STATS_PAGE = {
-    "stat1": "AS",
-}
-
-if SEASON_JUST_STARTED:
-    AVG_STATS_PAGE["stat2"] = "AS_2025"  # Calculate year programmatically
-
-if SEASON_IN_PROGRESS:
-    START_FROM = 1
-    NAME_COLUMN = 1
-else:
-    START_FROM = 1
-    NAME_COLUMN = 0
 
 PROXY_CHOICES = {"Y": True, "n": False}
 FORMAT_CHOICES = {"xlsx": "1", "txt": "2", "json": "3", "google_sheets": "4"}
+
+
+@dataclass(frozen=True)
+class SeasonMode:
+    in_progress: bool
+    just_started: bool
+
+
+SEASON_CHOICES = {"preseason": "1", "just_started": "2", "in_season": "3"}
+SEASON_MODES = {
+    SEASON_CHOICES["preseason"]: SeasonMode(in_progress=False, just_started=False),
+    SEASON_CHOICES["just_started"]: SeasonMode(in_progress=True, just_started=True),
+    SEASON_CHOICES["in_season"]: SeasonMode(in_progress=True, just_started=False),
+}
 
 PARSER = "lxml"
 
@@ -53,6 +51,12 @@ FORMAT_CHOICE_MESSAGE = (
 )
 
 PROXIES_CHOICE_MESSAGE = "Use proxies? Y/n:\n"
+SEASON_MODE_MESSAGE = (
+    "Select season mode:\n"
+    "Input 1 for preseason/offseason\n"
+    "Input 2 for season just started\n"
+    "Input 3 for in-season:\n"
+)
 INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
 INPUT_SCHEDULE_URL_MESSAGE = "Input schedule URL override (Enter for default):\n"
 INCORRECT_CHOICE_MESSAGE = "Please select a correct option"
@@ -181,7 +185,7 @@ def get_team_name(soup, fallback_name="Unknown Team"):
     return fallback_name[:30]
 
 
-def get_headers(soup):
+def get_headers(soup, *, season_in_progress):
     header_row = soup.find("tr", class_=HEADERS_CLASSES)
 
     if not header_row:
@@ -201,7 +205,7 @@ def get_headers(soup):
     for child in header_row.find_all(["th", "td"]):
         name = child.get_text(strip=True)
 
-        if SEASON_IN_PROGRESS:
+        if season_in_progress:
             headers["Add"] = []
 
         if name == "Action":
@@ -215,7 +219,7 @@ def get_headers(soup):
     return headers
 
 
-def get_body(soup, schedule, missing_schedule_teams=None):
+def get_body(soup, schedule, missing_schedule_teams=None, *, season_in_progress):
     skater_rows = soup.find_all("tbody")[1].find_all("tr")
 
     cell_values = []
@@ -224,7 +228,7 @@ def get_body(soup, schedule, missing_schedule_teams=None):
         empty = row.find(class_=EMPTY_SPOT_CLASSES)
         index = 0
 
-        if SEASON_IN_PROGRESS:
+        if season_in_progress:
             spot = row.find(class_=SPOT_CLASS)
 
             if spot.string in NOT_PLAYING:
@@ -318,6 +322,24 @@ def validate_input(message, choices):
     else:
         print(INCORRECT_CHOICE_MESSAGE)
         return None
+
+
+def build_avg_stats_page(season_just_started):
+    avg_stats_page = {"stat1": "AS"}
+
+    if season_just_started:
+        avg_stats_page["stat2"] = "AS_2025"  # Calculate year programmatically
+
+    return avg_stats_page
+
+
+def prompt_season_mode():
+    season_choice = validate_input(SEASON_MODE_MESSAGE, SEASON_CHOICES.values())
+
+    while not season_choice:
+        season_choice = validate_input(SEASON_MODE_MESSAGE, SEASON_CHOICES.values())
+
+    return SEASON_MODES[season_choice]
 
 
 def get_links(soup, league_link):
@@ -436,7 +458,7 @@ def get_matchup_date_range(matchup_link, proxies, proxy=None, today=None, league
     return date_range, proxy
 
 
-def build_roster_context(workbook, matchups_context):
+def build_roster_context(workbook, matchups_context, season_mode):
     return roster_workflow.RosterWorkflowContext(
         format_choices=FORMAT_CHOICES,
         parser=PARSER,
@@ -451,14 +473,16 @@ def build_roster_context(workbook, matchups_context):
         number_of_teams_processed_message=NUMBER_OF_TEAMS_PROCESSED_MESSAGE,
         positions_filename=POSITIONS_FILENAME,
         get_team_name=get_team_name,
-        get_headers=get_headers,
-        get_body=get_body,
+        get_headers=partial(get_headers, season_in_progress=season_mode.in_progress),
+        get_body=partial(get_body, season_in_progress=season_mode.in_progress),
         matchups_service=matchups_service,
         matchups_context=matchups_context,
     )
 
 
 def main():
+    season_mode = prompt_season_mode()
+
     use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
 
     while not use_proxies_choice:
@@ -552,14 +576,14 @@ def main():
         workbook = xlsxwriter.Workbook(filename)
         matchups_worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
 
-        roster_context = build_roster_context(workbook, matchups_context)
+        roster_context = build_roster_context(workbook, matchups_context, season_mode)
 
         current_proxy = roster_workflow.process_links(
             roster_context,
             team_links,
             proxies,
             choice,
-            AVG_STATS_PAGE,
+            build_avg_stats_page(season_mode.just_started),
             matchup_links,
             schedule,
             matchups_worksheet,
@@ -574,7 +598,7 @@ def main():
         if playoffs_in_progress:
             team_links, current_proxy = get_links_from_standings(league_id, proxies, current_proxy)
 
-        roster_context = build_roster_context(None, matchups_context)
+        roster_context = build_roster_context(None, matchups_context, season_mode)
 
         current_proxy = roster_workflow.process_links(
             roster_context,

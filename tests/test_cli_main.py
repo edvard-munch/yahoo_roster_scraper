@@ -5,7 +5,9 @@ from roster_scraper import cli
 
 
 def test_main_retries_invalid_proxy_and_league_then_runs_txt(monkeypatch):
-    validate_results = iter([None, "n", None, cli.FORMAT_CHOICES["txt"]])
+    validate_results = iter(
+        [cli.SEASON_CHOICES["in_season"], None, "n", None, cli.FORMAT_CHOICES["txt"]]
+    )
     inputs = iter(["bad-league", "good-league"])
     links_results = iter(
         [
@@ -47,7 +49,7 @@ def test_main_retries_invalid_proxy_and_league_then_runs_txt(monkeypatch):
 
 
 def test_main_uses_standings_links_for_json_when_playoffs_header_present(monkeypatch):
-    validate_results = iter(["n", cli.FORMAT_CHOICES["json"]])
+    validate_results = iter([cli.SEASON_CHOICES["in_season"], "n", cli.FORMAT_CHOICES["json"]])
     inputs = iter(["19715"])
     process_calls = []
     opened_files = []
@@ -87,7 +89,9 @@ def test_main_uses_standings_links_for_json_when_playoffs_header_present(monkeyp
 
 
 def test_main_runs_google_mode_without_opening_local_file(monkeypatch):
-    validate_results = iter(["n", cli.FORMAT_CHOICES["google_sheets"]])
+    validate_results = iter(
+        [cli.SEASON_CHOICES["in_season"], "n", cli.FORMAT_CHOICES["google_sheets"]]
+    )
     inputs = iter(["19715"])
     process_calls = []
     opened_files = []
@@ -123,7 +127,7 @@ def test_main_runs_google_mode_without_opening_local_file(monkeypatch):
 
 
 def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
-    validate_results = iter(["n", cli.FORMAT_CHOICES["xlsx"]])
+    validate_results = iter([cli.SEASON_CHOICES["just_started"], "n", cli.FORMAT_CHOICES["xlsx"]])
     inputs = iter(["19715", ""])
     process_calls = []
     opened_files = []
@@ -138,8 +142,6 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
         },
     )
 
-    monkeypatch.setattr(cli, "SEASON_JUST_STARTED", True)
-    monkeypatch.setattr(cli, "AVG_STATS_PAGE", {"stat1": "AS", "stat2": "AS_2025"})
     monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
@@ -182,7 +184,7 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
 
 
 def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
-    validate_results = iter(["Y", cli.FORMAT_CHOICES["xlsx"]])
+    validate_results = iter([cli.SEASON_CHOICES["in_season"], "Y", cli.FORMAT_CHOICES["xlsx"]])
     inputs = iter(["19715", ""])
     parse_calls = []
     schedule_calls = []
@@ -244,7 +246,7 @@ def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
 
 
 def test_main_passes_custom_schedule_url_override_to_schedule_scraper(monkeypatch):
-    validate_results = iter(["n", cli.FORMAT_CHOICES["xlsx"]])
+    validate_results = iter([cli.SEASON_CHOICES["in_season"], "n", cli.FORMAT_CHOICES["xlsx"]])
     inputs = iter(["19715", "https://example.com/custom-schedule"])
     schedule_calls = []
 
@@ -299,7 +301,7 @@ def test_main_passes_custom_schedule_url_override_to_schedule_scraper(monkeypatc
 
 
 def test_main_uses_matchup_date_range_for_longer_than_week_xlsx(monkeypatch):
-    validate_results = iter(["n", cli.FORMAT_CHOICES["xlsx"]])
+    validate_results = iter([cli.SEASON_CHOICES["in_season"], "n", cli.FORMAT_CHOICES["xlsx"]])
     inputs = iter(["19715", ""])
     schedule_calls = []
 
@@ -367,7 +369,7 @@ def test_main_uses_matchup_date_range_for_longer_than_week_xlsx(monkeypatch):
 
 
 def test_main_falls_back_to_weekly_schedule_when_matchup_range_not_detected(monkeypatch):
-    validate_results = iter(["n", cli.FORMAT_CHOICES["xlsx"]])
+    validate_results = iter([cli.SEASON_CHOICES["in_season"], "n", cli.FORMAT_CHOICES["xlsx"]])
     inputs = iter(["19715", ""])
     schedule_calls = []
 

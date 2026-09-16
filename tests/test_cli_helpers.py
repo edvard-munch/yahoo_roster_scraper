@@ -167,3 +167,33 @@ def test_get_links_from_standings_returns_team_hrefs(monkeypatch):
     assert captured["proxy"] is None
     assert result == ["/team/10", "/team/11"]
     assert proxy is None
+
+
+def test_season_modes_map_to_expected_flags():
+    preseason = cli.SEASON_MODES[cli.SEASON_CHOICES["preseason"]]
+    just_started = cli.SEASON_MODES[cli.SEASON_CHOICES["just_started"]]
+    in_season = cli.SEASON_MODES[cli.SEASON_CHOICES["in_season"]]
+
+    assert preseason.in_progress is False
+    assert preseason.just_started is False
+    assert just_started.in_progress is True
+    assert just_started.just_started is True
+    assert in_season.in_progress is True
+    assert in_season.just_started is False
+
+
+def test_prompt_season_mode_returns_selected_mode(monkeypatch):
+    monkeypatch.setattr(
+        cli,
+        "validate_input",
+        lambda *args, **kwargs: cli.SEASON_CHOICES["preseason"],
+    )
+
+    season_mode = cli.prompt_season_mode()
+
+    assert season_mode == cli.SEASON_MODES[cli.SEASON_CHOICES["preseason"]]
+
+
+def test_build_avg_stats_page_adds_last_season_when_just_started():
+    assert cli.build_avg_stats_page(True) == {"stat1": "AS", "stat2": "AS_2025"}
+    assert cli.build_avg_stats_page(False) == {"stat1": "AS"}

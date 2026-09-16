@@ -23,7 +23,7 @@ def test_get_headers_uses_action_fallback_row():
     """
     soup = bs4.BeautifulSoup(html, "lxml")
 
-    headers = cli.get_headers(soup)
+    headers = cli.get_headers(soup, season_in_progress=True)
 
     assert "Action" in headers
     assert "G" in headers
@@ -44,4 +44,4 @@ def test_get_headers_raises_when_no_header_row_found():
     soup = bs4.BeautifulSoup(html, "lxml")
 
     with pytest.raises(RuntimeError, match="Roster header row not found"):
-        cli.get_headers(soup)
+        cli.get_headers(soup, season_in_progress=True)
