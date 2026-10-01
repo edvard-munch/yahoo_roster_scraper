@@ -133,12 +133,145 @@ def test_get_links_returns_matchup_and_team_links():
     assert links[1] == ["/team/1", "/team/2"]
 
 
-def test_get_links_returns_none_when_no_matchups_found():
+def test_get_links_returns_empty_lists_when_no_matchups_found():
     soup = bs4.BeautifulSoup("<html><body><p>empty</p></body></html>", "lxml")
 
     links = cli.get_links(soup, "https://hockey.fantasysports.yahoo.com/hockey/19715")
 
-    assert links is None
+    assert links == ([], [])
+
+
+def test_extract_team_id_handles_league_and_year_links():
+    assert cli.extract_team_id("https://hockey.fantasysports.yahoo.com/hockey/12922/4") == "4"
+    assert cli.extract_team_id("https://hockey.fantasysports.yahoo.com/2025/hockey/19715/4") == "4"
+    assert cli.extract_team_id("https://example.com/not-a-team") is None
+
+
+def test_merge_team_links_dedupes_by_name_and_falls_back_to_team_id():
+    league_link = "https://hockey.fantasysports.yahoo.com/hockey/12922/4"
+    same_name_link = "https://hockey.fantasysports.yahoo.com/2025/hockey/19715/8"
+    extra_team_link = "https://hockey.fantasysports.yahoo.com/2025/hockey/19715/12"
+
+    merged = cli.merge_team_links(
+        [(league_link, "Dekes and Geek(ie)s")],
+        [(same_name_link, "Dekes and Geek(ie)s"), (extra_team_link, "New Team")],
+    )
+
+    assert merged == [league_link, extra_team_link]
+
+
+def test_merge_team_links_dedupes_unnamed_links_by_team_id():
+    league_link = "https://hockey.fantasysports.yahoo.com/hockey/12922/4"
+    same_id_link = "https://hockey.fantasysports.yahoo.com/2025/hockey/19715/4"
+
+    merged = cli.merge_team_links([(league_link, None)], [(same_id_link, None)])
+
+    assert merged == [league_link]
+
+
+def test_resolve_league_links_merges_league_and_standings_in_preseason(monkeypatch, capsys):
+    season_mode = cli.SEASON_MODES[cli.SEASON_CHOICES["preseason"]]
+    league_link = "https://hockey.fantasysports.yahoo.com/hockey/12922"
+    monkeypatch.setattr(cli, "get_links", lambda *args, **kwargs: ([], []))
+    monkeypatch.setattr(
+        cli,
+        "get_team_links_from_league",
+        lambda *args, **kwargs: [
+            (f"{league_link}/1", "Team One"),
+            (f"{league_link}/4", "Dekes and Geek(ie)s"),
+        ],
+    )
+    monkeypatch.setattr(
+        cli,
+        "get_links_from_standings",
+        lambda league_id, proxies, proxy=None: (
+            [
+                "https://hockey.fantasysports.yahoo.com/2025/hockey/19715/1",
+                "https://hockey.fantasysports.yahoo.com/2025/hockey/19715/8",
+            ],
+            "proxy",
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "inspect_team_link",
+        lambda link, proxies, proxy=None: (
+            ("Team One", proxy) if link.endswith("/1") else ("Dekes and Geek(ie)s", proxy)
+        ),
+    )
+
+    result, proxy = cli.resolve_league_links(
+        bs4.BeautifulSoup("<html></html>", "lxml"),
+        league_link,
+        "12922",
+        season_mode,
+        proxies=[],
+        proxy=None,
+    )
+
+    assert result == (
+        [],
+        [
+            f"{league_link}/1",
+            f"{league_link}/4",
+        ],
+    )
+    assert proxy == "proxy"
+    assert cli.NO_MATCHUPS_FOUND_MESSAGE in capsys.readouterr().out
+
+
+def test_resolve_league_links_skips_standings_team_with_empty_roster(monkeypatch, capsys):
+    season_mode = cli.SEASON_MODES[cli.SEASON_CHOICES["preseason"]]
+    league_link = "https://hockey.fantasysports.yahoo.com/hockey/12922"
+    monkeypatch.setattr(cli, "get_links", lambda *args, **kwargs: ([], []))
+    monkeypatch.setattr(
+        cli,
+        "get_team_links_from_league",
+        lambda *args, **kwargs: [(f"{league_link}/1", "Team One")],
+    )
+    monkeypatch.setattr(
+        cli,
+        "get_links_from_standings",
+        lambda league_id, proxies, proxy=None: (
+            ["https://hockey.fantasysports.yahoo.com/2025/hockey/19715/8"],
+            "proxy",
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "inspect_team_link",
+        lambda link, proxies, proxy=None: (None, proxy),
+    )
+
+    result, proxy = cli.resolve_league_links(
+        bs4.BeautifulSoup("<html></html>", "lxml"),
+        league_link,
+        "12922",
+        season_mode,
+        proxies=[],
+        proxy=None,
+    )
+
+    assert result == ([], [f"{league_link}/1"])
+    assert cli.NO_MATCHUPS_FOUND_MESSAGE in capsys.readouterr().out
+
+
+def test_resolve_league_links_keeps_in_season_error(monkeypatch, capsys):
+    season_mode = cli.SEASON_MODES[cli.SEASON_CHOICES["in_season"]]
+    monkeypatch.setattr(cli, "get_links", lambda *args, **kwargs: ([], []))
+
+    result, proxy = cli.resolve_league_links(
+        bs4.BeautifulSoup("<html></html>", "lxml"),
+        "https://hockey.fantasysports.yahoo.com/hockey/19715",
+        "19715",
+        season_mode,
+        proxies=[],
+        proxy=None,
+    )
+
+    assert result is None
+    assert proxy is None
+    assert cli.LEAGUE_ID_INCORRECT_MESSAGE in capsys.readouterr().out
 
 
 def test_get_links_from_standings_returns_team_hrefs(monkeypatch):

@@ -8,10 +8,11 @@ def test_main_retries_invalid_proxy_and_league_then_runs_txt(monkeypatch):
     validate_results = iter(
         [cli.SEASON_CHOICES["in_season"], None, "n", None, cli.FORMAT_CHOICES["txt"]]
     )
-    inputs = iter(["bad-league", "good-league"])
+    inputs = iter(["bad-league", "empty-league", "good-league"])
     links_results = iter(
         [
-            None,
+            ([], []),
+            ([], []),
             (["https://example.com/matchup/1"], ["/team/1"]),
         ]
     )
@@ -86,6 +87,55 @@ def test_main_uses_standings_links_for_json_when_playoffs_header_present(monkeyp
     assert args[1] == ["/standing/1", "/standing/2"]
     assert args[3] == cli.FORMAT_CHOICES["json"]
     assert opened_files == [cli.POSITIONS_FILENAME]
+
+
+def test_main_uses_standings_for_preseason_without_matchups(monkeypatch, capsys):
+    validate_results = iter([cli.SEASON_CHOICES["preseason"], "n", cli.FORMAT_CHOICES["txt"]])
+    inputs = iter(["12922"])
+    process_calls = []
+    opened_files = []
+
+    monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
+    monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
+    monkeypatch.setattr(
+        cli,
+        "parse_full_page",
+        lambda *args, **kwargs: (bs4.BeautifulSoup("<html></html>", "lxml"), None),
+    )
+    monkeypatch.setattr(cli, "get_links", lambda *args, **kwargs: ([], []))
+    monkeypatch.setattr(
+        cli,
+        "get_team_links_from_league",
+        lambda *args, **kwargs: [("/league/1", "League Team")],
+    )
+    monkeypatch.setattr(
+        cli,
+        "get_links_from_standings",
+        lambda league_id, proxies, proxy=None: (["/standing/1", "/standing/2"], proxy),
+    )
+    monkeypatch.setattr(
+        cli,
+        "inspect_team_link",
+        lambda link, proxies, proxy=None: (f"Team {link}", proxy),
+    )
+    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(
+        cli.roster_workflow,
+        "process_links",
+        lambda *args, **kwargs: process_calls.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        cli.core_output, "open_file", lambda filename: opened_files.append(filename)
+    )
+
+    cli.main()
+
+    assert len(process_calls) == 1
+    args, _ = process_calls[0]
+    assert args[1] == ["/league/1", "/standing/1", "/standing/2"]
+    assert args[3] == cli.FORMAT_CHOICES["txt"]
+    assert cli.NO_MATCHUPS_FOUND_MESSAGE in capsys.readouterr().out
+    assert opened_files == [cli.TXT_FILENAME]
 
 
 def test_main_runs_google_mode_without_opening_local_file(monkeypatch):

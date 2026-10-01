@@ -9,6 +9,7 @@ import datetime
 import xlsxwriter
 from dataclasses import dataclass
 from functools import partial
+from urllib.parse import urljoin
 
 from roster_scraper.services import positions as positions_scraper
 from roster_scraper.services import proxies as proxies_scraper
@@ -61,6 +62,7 @@ INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
 INPUT_SCHEDULE_URL_MESSAGE = "Input schedule URL override (Enter for default):\n"
 INCORRECT_CHOICE_MESSAGE = "Please select a correct option"
 LEAGUE_ID_INCORRECT_MESSAGE = "League with this ID does not exist or not publicly viewable"
+NO_MATCHUPS_FOUND_MESSAGE = "No matchups found (preseason/off-season); continuing with team links."
 LEAGUE_SCRAPING_SUCCESS_MESSAGE = "League's main page scraped!"
 
 TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
@@ -77,6 +79,9 @@ TEAM_NAME_MATCHUP_RESULT_CLASSES = "Grid-u Nowrap"
 HEADERS_CLASSES = "Alt Last"
 TEAM_NAME_CLASSES = "Navtarget No-pbot F-reset No-case Fz-35 Fw-b team-name"
 TEAM_NAME_STANDINGS_CLASSES = "Grid-u F-reset Ell Mawpx-250"
+TEAM_ROW_CLASSES = "Listitem No-p"
+TEAM_NAME_LINK_CLASSES = "F-link"
+TEAM_LINK_TEAM_ID_PATTERN = re.compile(r"/hockey/(?:\d+/)?(?P<team_id>\d+)$")
 PLAYOFFS_HEADER = "Championship Bracket"
 MATCHUP_DATE_RANGE_PATTERNS = [
     re.compile(
@@ -361,9 +366,21 @@ def get_links(soup, league_link):
         print(LEAGUE_SCRAPING_SUCCESS_MESSAGE)
         return (matchup_links, team_links)
 
-    else:
-        print(LEAGUE_ID_INCORRECT_MESSAGE)
-        return None
+    return ([], [])
+
+
+def get_team_links_from_league(soup, league_link):
+    team_links = []
+    team_rows = scrape_from_page(soup, "li", "class", re.compile(TEAM_ROW_CLASSES))
+
+    for row in team_rows:
+        team_link = row.find("a", class_=TEAM_NAME_LINK_CLASSES)
+
+        if team_link and team_link.get("href"):
+            team_name = team_link.get_text(strip=True)
+            team_links.append((urljoin(league_link, team_link["href"]), team_name))
+
+    return team_links
 
 
 def get_links_from_standings(league_id, proxies, proxy=None):
@@ -372,6 +389,95 @@ def get_links_from_standings(league_id, proxies, proxy=None):
     )
     teams = scrape_from_page(standings_page_soup, "a", "class", TEAM_NAME_STANDINGS_CLASSES)
     return [team_link.get("href") for team_link in teams], proxy
+
+
+def inspect_team_link(team_link, proxies, proxy=None):
+    try:
+        soup, proxy = parse_full_page(team_link, proxies, proxy)
+    except RuntimeError:
+        return None, proxy
+
+    bodies = soup.find_all("tbody")
+    roster_groups = core_parsing.parse_clean_names(bodies[1:])
+    has_players = any(
+        player and player != EMPTY_SPOT_STRING for group in roster_groups for player in group
+    )
+
+    if not has_players:
+        return None, proxy
+
+    return get_team_name(soup), proxy
+
+
+def extract_team_id(team_link):
+    match = TEAM_LINK_TEAM_ID_PATTERN.search(team_link or "")
+    return match.group("team_id") if match else None
+
+
+def merge_team_links(preferred_links, extra_links):
+    merged = []
+    seen_names = set()
+    seen_team_ids = set()
+
+    for link, team_name in [*preferred_links, *extra_links]:
+        team_id = extract_team_id(link)
+
+        if team_name and team_name in seen_names:
+            continue
+
+        if not team_name and team_id and team_id in seen_team_ids:
+            continue
+
+        if team_name:
+            seen_names.add(team_name)
+        elif team_id:
+            seen_team_ids.add(team_id)
+
+        if team_id:
+            seen_team_ids.add(team_id)
+
+        merged.append(link)
+
+    return merged
+
+
+def resolve_league_links(
+    main_page_soup,
+    league_link,
+    league_id,
+    season_mode,
+    proxies,
+    proxy=None,
+):
+    matchup_links, team_links = get_links(main_page_soup, league_link)
+
+    if matchup_links:
+        return (matchup_links, team_links), proxy
+
+    if season_mode.in_progress:
+        print(LEAGUE_ID_INCORRECT_MESSAGE)
+        return None, proxy
+
+    league_page_team_links = get_team_links_from_league(main_page_soup, league_link)
+    standings_team_links, proxy = get_links_from_standings(league_id, proxies, proxy)
+    extra_team_links = []
+
+    for link in standings_team_links:
+        team_name, proxy = inspect_team_link(link, proxies, proxy)
+
+        if not team_name:
+            continue
+
+        extra_team_links.append((link, team_name))
+
+    team_links = merge_team_links(league_page_team_links, extra_team_links)
+
+    if team_links:
+        print(NO_MATCHUPS_FOUND_MESSAGE)
+        return ([], team_links), proxy
+
+    print(LEAGUE_ID_INCORRECT_MESSAGE)
+    return None, proxy
 
 
 def _build_matchup_date(month, day, year):
@@ -499,13 +605,27 @@ def main():
 
     link = BASE_FANTASY_URL + league_id
     main_page_soup, current_proxy = parse_full_page(link, proxies)
-    league_scrapable = get_links(main_page_soup, link)
+    league_scrapable, current_proxy = resolve_league_links(
+        main_page_soup,
+        link,
+        league_id,
+        season_mode,
+        proxies,
+        current_proxy,
+    )
 
-    while not league_scrapable:
+    while not league_scrapable or not league_scrapable[1]:
         league_id = input(INPUT_LEAGUE_ID_MESSAGE)
         link = BASE_FANTASY_URL + league_id
         main_page_soup, current_proxy = parse_full_page(link, proxies, current_proxy)
-        league_scrapable = get_links(main_page_soup, link)
+        league_scrapable, current_proxy = resolve_league_links(
+            main_page_soup,
+            link,
+            league_id,
+            season_mode,
+            proxies,
+            current_proxy,
+        )
 
     team_links = league_scrapable[1]
 
