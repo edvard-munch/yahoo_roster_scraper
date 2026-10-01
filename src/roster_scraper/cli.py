@@ -190,7 +190,7 @@ def get_team_name(soup, fallback_name="Unknown Team"):
     return fallback_name[:30]
 
 
-def get_headers(soup, *, season_in_progress):
+def get_roster_header_row(soup):
     header_row = soup.find("tr", class_=HEADERS_CLASSES)
 
     if not header_row:
@@ -199,6 +199,12 @@ def get_headers(soup, *, season_in_progress):
             if "Action" in header_names:
                 header_row = row
                 break
+
+    return header_row
+
+
+def get_headers(soup, *, season_in_progress):
+    header_row = get_roster_header_row(soup)
 
     if not header_row:
         raise RuntimeError("Roster header row not found")
@@ -225,7 +231,13 @@ def get_headers(soup, *, season_in_progress):
 
 
 def get_body(soup, schedule, missing_schedule_teams=None, *, season_in_progress):
-    skater_rows = soup.find_all("tbody")[1].find_all("tr")
+    header_row = get_roster_header_row(soup)
+
+    if header_row:
+        roster_table = header_row.find_parent("table")
+        skater_rows = roster_table.find("tbody").find_all("tr")
+    else:
+        skater_rows = soup.find_all("tbody")[1].find_all("tr")
 
     cell_values = []
 
