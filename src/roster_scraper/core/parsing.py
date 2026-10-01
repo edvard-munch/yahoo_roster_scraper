@@ -61,7 +61,11 @@ def parse_for_json(skaters):
     for row in rows:
         for cell in row:
             if PLAYER_NAME_CLASS in cell.attrs["class"]:
-                player_link = cell.find(class_=PLAYER_LINK_CLASSES)
+                player_link = cell.find(
+                    lambda tag: (
+                        tag.get("class") and PLAYER_LINK_CLASSES.search(" ".join(tag.get("class")))
+                    )
+                )
 
                 if player_link:
                     name = player_link.string
@@ -84,7 +88,12 @@ def parse_clean_names(bodies):
             rostered_found = False
             for cell in row:
                 if PLAYER_NAME_CLASS in cell.attrs["class"]:
-                    player_link = cell.find(class_=PLAYER_LINK_CLASSES)
+                    player_link = cell.find(
+                        lambda tag: (
+                            tag.get("class")
+                            and PLAYER_LINK_CLASSES.search(" ".join(tag.get("class")))
+                        )
+                    )
                     txt.append([])
 
                     if player_link:

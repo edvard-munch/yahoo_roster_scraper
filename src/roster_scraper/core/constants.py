@@ -1,4 +1,5 @@
 import num2words
+import re
 
 
 TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
@@ -41,6 +42,6 @@ COLUMNS_TO_DELETE = ["Action", "Add", "Opp", "Status", "Pre-Season", "Current", 
 
 EMPTY_SPOT_STRING = "Empty"
 PLAYER_NAME_CLASS = "player"
-PLAYER_LINK_CLASSES = "Nowrap name F-link playernote"
+PLAYER_LINK_CLASSES = re.compile(r"Nowrap\s+name\s+F-link(?:\s+\S+)?", re.IGNORECASE)
 TEAM_AND_POSITION_SPAN_CLASS = "Fz-xxs"
 POSITION_CODES = ["G", "D", "LW", "RW", "C"]

@@ -100,7 +100,7 @@ STANDINGS_PAGE_URL = (
 EMPTY_SPOT_CLASSES = "Nowrap emptyplayer Inlineblock"
 SPOT_CLASS = "pos-label"
 PLAYER_NAME_CLASS = "player"
-PLAYER_LINK_CLASSES = "Nowrap name F-link playernote"
+PLAYER_LINK_CLASSES = re.compile(r"Nowrap\s+name\s+F-link(?:\s+\S+)?", re.IGNORECASE)
 TEAM_AND_POSITION_SPAN_CLASS = "Fz-xxs"
 
 MATCHUP_TOTALS_PARAMETER = "&date=total"
@@ -246,7 +246,11 @@ def get_body(soup, schedule, missing_schedule_teams=None, *, season_in_progress)
             if PLAYER_NAME_CLASS in cell.attrs["class"]:
                 if i == 0:
                     cell_values.extend(([], []))
-                player_link = cell.find(class_=PLAYER_LINK_CLASSES)
+                player_link = cell.find(
+                    lambda tag: (
+                        tag.get("class") and PLAYER_LINK_CLASSES.search(" ".join(tag.get("class")))
+                    )
+                )
                 if player_link:
                     name = player_link.string
                     span = cell.find(lambda tag: tag.get("class") == [TEAM_AND_POSITION_SPAN_CLASS])
