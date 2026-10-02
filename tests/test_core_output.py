@@ -38,10 +38,23 @@ def test_get_filename_uses_timestamp_template(monkeypatch):
             return real_datetime.strftime(value, fmt)
 
     monkeypatch.setattr(output.datetime, "datetime", DummyDatetime)
+    created = []
+    monkeypatch.setattr(
+        output, "ensure_parent_directory", lambda filename: created.append(filename)
+    )
 
     filename = output.get_filename()
 
     assert filename == "reports/stats_list_20240102-030405.xlsx"
+    assert created == [filename]
+
+
+def test_ensure_parent_directory_creates_missing_path(tmp_path):
+    filename = tmp_path / "missing" / "nested" / "file.txt"
+
+    output.ensure_parent_directory(str(filename))
+
+    assert (tmp_path / "missing" / "nested").exists()
 
 
 def test_write_to_xlsx_writes_headers_and_columns():

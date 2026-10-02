@@ -1,5 +1,6 @@
 import datetime
 import os
+from pathlib import Path
 import re
 import subprocess
 import sys
@@ -17,10 +18,16 @@ from roster_scraper.core.constants import (
 )
 
 
+def ensure_parent_directory(filename):
+    Path(filename).parent.mkdir(parents=True, exist_ok=True)
+
+
 def get_filename():
     now = datetime.datetime.now()
     timestamp = datetime.datetime.strftime(now, TIMESTAMP_FORMAT)
-    return XLSX_FILENAME_TEMPLATE.format(timestamp)
+    filename = XLSX_FILENAME_TEMPLATE.format(timestamp)
+    ensure_parent_directory(filename)
+    return filename
 
 
 def open_file(filename):
@@ -50,6 +57,8 @@ def write_to_xlsx(table, worksheet):
 
 
 def write_roster_to_txt(full_roster, file_mode, team_name, empty_spot_string):
+    ensure_parent_directory(TXT_FILENAME)
+
     with open(TXT_FILENAME, file_mode) as text_file:
         text_file.write(TEAM_NAME_HEADER.format(team_name))
         text_file.write("\n\n")
