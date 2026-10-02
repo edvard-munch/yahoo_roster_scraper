@@ -59,7 +59,11 @@ SEASON_MODE_MESSAGE = (
     "Input 3 for in-season:\n"
 )
 INPUT_LEAGUE_ID_MESSAGE = "Input league's ID:\n"
-INPUT_SCHEDULE_URL_MESSAGE = "Input schedule URL override (Enter for default):\n"
+INPUT_SCHEDULE_START_DATE_MESSAGE = (
+    "Input schedule start date override YYYY-MM-DD (Enter for today; use tomorrow to skip today):\n"
+)
+SCHEDULE_START_DATE_FORMAT = "%Y-%m-%d"
+SCHEDULE_START_DATE_INVALID_MESSAGE = "Invalid date; expected YYYY-MM-DD. Please try again:\n"
 INCORRECT_CHOICE_MESSAGE = "Please select a correct option"
 LEAGUE_ID_INCORRECT_MESSAGE = "League with this ID does not exist or not publicly viewable"
 NO_MATCHUPS_FOUND_MESSAGE = "No matchups found (preseason/off-season); continuing with team links."
@@ -105,7 +109,7 @@ TEAM_AND_POSITION_SPAN_CLASS = "Fz-xxs"
 
 MATCHUP_TOTALS_PARAMETER = "&date=total"
 MATCHUP_RANGE_DAYS_THRESHOLD = 7
-SCHEDULE_URL_OVERRIDE_MESSAGE = "Using schedule URL override: {}"
+SCHEDULE_START_DATE_OVERRIDE_MESSAGE = "Using schedule start date override: {}"
 MATCHUP_RANGE_DETECTED_MESSAGE = "Detected matchup range: {} -> {} ({} days)"
 MATCHUP_RANGE_MODE_MESSAGE = "Using matchup range for schedule scraping"
 MATCHUP_RANGE_EFFECTIVE_MESSAGE = "Effective remaining matchup range: {} -> {}"
@@ -361,6 +365,23 @@ def prompt_season_mode():
         season_choice = validate_input(SEASON_MODE_MESSAGE, SEASON_CHOICES.values())
 
     return SEASON_MODES[season_choice]
+
+
+def prompt_schedule_start_date_override():
+    while True:
+        raw_value = input(INPUT_SCHEDULE_START_DATE_MESSAGE).strip()
+
+        if not raw_value:
+            return None
+
+        try:
+            parsed_date = datetime.datetime.strptime(raw_value, SCHEDULE_START_DATE_FORMAT).date()
+        except ValueError:
+            print(SCHEDULE_START_DATE_INVALID_MESSAGE)
+            continue
+
+        print(SCHEDULE_START_DATE_OVERRIDE_MESSAGE.format(parsed_date))
+        return parsed_date
 
 
 def get_links(soup, league_link):
@@ -664,15 +685,11 @@ def main():
     if choice == FORMAT_CHOICES["xlsx"]:
         matchup_links = league_scrapable[0]
 
-        schedule_url = input(INPUT_SCHEDULE_URL_MESSAGE).strip()
-        schedule_url_override = schedule_url or None
-
-        if schedule_url_override:
-            print(SCHEDULE_URL_OVERRIDE_MESSAGE.format(schedule_url_override))
+        start_date_override = prompt_schedule_start_date_override()
 
         start_date = None
         end_date = None
-        if not schedule_url_override and matchup_links:
+        if matchup_links:
             matchup_date_range, current_proxy = get_matchup_date_range(
                 matchup_links[0],
                 proxies,
@@ -700,12 +717,10 @@ def main():
             else:
                 print(MATCHUP_RANGE_NOT_FOUND_MESSAGE.format(matchup_links[0]))
 
-        schedule, current_proxy = schedule_scraper.get_schedule(
-            proxies,
-            current_proxy,
-            schedule_url=schedule_url_override,
+        schedule, _ = schedule_scraper.get_schedule(
             start_date=start_date,
             end_date=end_date,
+            start_date_override=start_date_override,
         )
 
         filename = core_output.get_filename()

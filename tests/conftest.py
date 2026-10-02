@@ -18,10 +18,5 @@ def fixtures_path() -> Path:
 
 
 @pytest.fixture
-def frozenpool_schedule_html(fixtures_path: Path) -> str:
-    return (fixtures_path / "frozenpool_schedule.html").read_text()
-
-
-@pytest.fixture
 def yahoo_team_page_html(fixtures_path: Path) -> str:
     return (fixtures_path / "yahoo_team_page.html").read_text()

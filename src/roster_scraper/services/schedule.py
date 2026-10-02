@@ -1,32 +1,19 @@
+import datetime
 import re
-from urllib.parse import parse_qsl
-from urllib.parse import urlencode
-from urllib.parse import urlsplit
-from urllib.parse import urlunsplit
 
-import bs4
-
-from . import proxies
+import requests
 
 
-SCHEDULE_URL = (
-    "https://frozenpool.dobbersports.com/frozenpool_planner.php?"
-    "report=Remaining+wk&startdate=&enddate=&light_day=8&include_preseason=y"
-)
-PARSER = "lxml"
 GAMES_LEFT_THIS_WEEK_COLUMN = "GL"
-SHEDULE_SCRAPING_SUCCESS_MESSAGE = "Schedule scraped!"
+NHL_SCHEDULE_API_URL = "https://api-web.nhle.com/v1/schedule/{}"
+NHL_SCHEDULE_REQUEST_TIMEOUT = 15
+NHL_SCHEDULE_SOURCE_MESSAGE = "NHL schedule API range: {} -> {}"
+NHL_SCHEDULE_LOAD_FAILED_MESSAGE = "Could not load NHL schedule for {}: {}"
+FUTURE_GAME_STATE = "FUT"
 SCHEDULE_DEBUG_PREVIEW_TEAMS = 10
-SCHEDULE_NOT_AVAILABLE_MESSAGE = "Schedule table not found on source page."
 SCHEDULE_TEAMS_SCRAPED_MESSAGE = "Schedule teams scraped (raw): {}"
 SCHEDULE_TEAMS_LOADED_MESSAGE = "Schedule teams loaded (after aliases): {}"
 SCHEDULE_ALIAS_ENTRIES_ADDED_MESSAGE = "Schedule alias entries added: {}"
-SCHEDULE_SOURCE_URL_MESSAGE = "Schedule source URL: {}"
-SCHEDULE_CUSTOM_REPORT_VALUE = "Custom"
-SCHEDULE_REPORT_QUERY_KEY = "report"
-SCHEDULE_START_DATE_QUERY_KEY = "startdate"
-SCHEDULE_END_DATE_QUERY_KEY = "enddate"
-SCHEDULE_DATE_FORMAT = "%Y-%m-%d"
 TEAM_CODE_ALIASES = {
     "MON": "MTL",
     "ANH": "ANA",
@@ -56,92 +43,102 @@ def apply_team_aliases(team_schedules):
     return team_schedules
 
 
-def build_schedule_url(schedule_url=None, start_date=None, end_date=None):
-    url = schedule_url or SCHEDULE_URL
+def get_remaining_week_end(today=None):
+    today = today or datetime.date.today()
+    days_until_sunday = (6 - today.weekday()) % 7
+    return today + datetime.timedelta(days=days_until_sunday)
 
-    if not start_date or not end_date:
-        return url
 
-    parsed_url = urlsplit(url)
-    query = dict(parse_qsl(parsed_url.query))
-    query[SCHEDULE_REPORT_QUERY_KEY] = SCHEDULE_CUSTOM_REPORT_VALUE
-    query[SCHEDULE_START_DATE_QUERY_KEY] = start_date.strftime(SCHEDULE_DATE_FORMAT)
-    query[SCHEDULE_END_DATE_QUERY_KEY] = end_date.strftime(SCHEDULE_DATE_FORMAT)
-    updated_query = urlencode(query)
+def resolve_schedule_window(start_date=None, end_date=None, today=None, start_date_override=None):
+    today = today or datetime.date.today()
 
-    return urlunsplit(
-        (
-            parsed_url.scheme,
-            parsed_url.netloc,
-            parsed_url.path,
-            updated_query,
-            parsed_url.fragment,
-        )
+    if start_date_override:
+        start_date = max(start_date_override, today)
+
+    if not start_date:
+        start_date = today
+
+    if not end_date:
+        end_date = get_remaining_week_end(start_date)
+
+    if end_date < start_date:
+        end_date = get_remaining_week_end(start_date)
+
+    return start_date, end_date
+
+
+def fetch_nhl_schedule(start_date, end_date):
+    team_games = {}
+    current_week_start = start_date
+
+    while current_week_start <= end_date:
+        try:
+            response = requests.get(
+                NHL_SCHEDULE_API_URL.format(current_week_start.isoformat()),
+                timeout=NHL_SCHEDULE_REQUEST_TIMEOUT,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError) as err:
+            print(NHL_SCHEDULE_LOAD_FAILED_MESSAGE.format(current_week_start, err))
+            current_week_start += datetime.timedelta(days=7)
+            continue
+
+        for day in payload.get("gameWeek", []):
+            try:
+                day_date = datetime.date.fromisoformat(day["date"])
+            except (KeyError, ValueError):
+                continue
+
+            if not start_date <= day_date <= end_date:
+                continue
+
+            for game in day.get("games", []):
+                if game.get("gameState") != FUTURE_GAME_STATE:
+                    continue
+
+                for side in ("awayTeam", "homeTeam"):
+                    team_code = game.get(side, {}).get("abbrev")
+                    if team_code:
+                        team_games[team_code] = team_games.get(team_code, 0) + 1
+
+        current_week_start += datetime.timedelta(days=7)
+
+    return team_games
+
+
+def get_nhl_schedule(start_date=None, end_date=None, today=None, start_date_override=None):
+    start_date, end_date = resolve_schedule_window(
+        start_date=start_date,
+        end_date=end_date,
+        today=today,
+        start_date_override=start_date_override,
     )
 
+    print(NHL_SCHEDULE_SOURCE_MESSAGE.format(start_date, end_date))
 
-def get_schedule(proxies_list, proxy=None, schedule_url=None, start_date=None, end_date=None):
-    url = build_schedule_url(schedule_url, start_date, end_date)
-    print(SCHEDULE_SOURCE_URL_MESSAGE.format(url))
-    params = {}
-    if proxies_list:
-        try:
-            web, proxy = proxies.get_response_with_retries(
-                url,
-                params,
-                proxies_list,
-                failure_target=proxies.PROXY_FAILURE_TARGET_SCHEDULE,
-                proxy=proxy,
-            )
-        except RuntimeError as err:
-            print(err)
-            return {}, None
-    else:
-        web = proxies.get_response(url, params)
+    team_games = fetch_nhl_schedule(start_date, end_date)
 
-    soup = bs4.BeautifulSoup(web.content, PARSER)
-    team_schedules = {}
-    schedule_table = None
-
-    for table in soup.find_all("table"):
-        rows = table.find_all("tr")
-        if len(rows) < 2:
-            continue
-
-        headers = [cell.get_text(strip=True) for cell in rows[1].find_all(["th", "td"])]
-        if len(headers) >= 2 and headers[0] == "Team" and headers[1] == "GP":
-            schedule_table = table
-            break
-
-    if not schedule_table:
-        print(SCHEDULE_NOT_AVAILABLE_MESSAGE)
-        return team_schedules, proxy
-
-    rows = schedule_table.find_all("tr")[2:]
-    for row in rows:
-        cells = [cell.get_text(strip=True) for cell in row.find_all(["th", "td"])]
-        if len(cells) < 2:
-            continue
-
-        team_code = normalize_team_code(cells[0])
-        games_match = re.search(r"\d+", cells[1])
-
-        if not re.fullmatch(r"[A-Z]{2,4}", team_code):
-            continue
-
-        games_left = int(games_match.group(0)) if games_match else 0
-        team_schedules[team_code] = {GAMES_LEFT_THIS_WEEK_COLUMN: games_left}
-
-    raw_team_count = len(team_schedules)
+    raw_team_count = len(team_games)
+    team_schedules = {
+        team_code: {GAMES_LEFT_THIS_WEEK_COLUMN: games} for team_code, games in team_games.items()
+    }
     team_schedules = apply_team_aliases(team_schedules)
     loaded_team_count = len(team_schedules)
     alias_entries_added = loaded_team_count - raw_team_count
 
-    print(SHEDULE_SCRAPING_SUCCESS_MESSAGE)
     print(SCHEDULE_TEAMS_SCRAPED_MESSAGE.format(raw_team_count))
     print(SCHEDULE_TEAMS_LOADED_MESSAGE.format(loaded_team_count))
     if alias_entries_added:
         print(SCHEDULE_ALIAS_ENTRIES_ADDED_MESSAGE.format(alias_entries_added))
     preview = sorted(team_schedules.keys())[:SCHEDULE_DEBUG_PREVIEW_TEAMS]
     print(f"Schedule teams preview: {preview}")
-    return team_schedules, proxy
+    return team_schedules, None
+
+
+def get_schedule(start_date=None, end_date=None, start_date_override=None):
+    return get_nhl_schedule(
+        start_date=start_date,
+        end_date=end_date,
+        start_date_override=start_date_override,
+    )

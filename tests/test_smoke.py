@@ -1,8 +1,7 @@
 from roster_scraper.services import schedule
 
 
-def test_fixture_html_is_loaded(frozenpool_schedule_html, yahoo_team_page_html):
-    assert "Team" in frozenpool_schedule_html
+def test_yahoo_fixture_html_is_loaded(yahoo_team_page_html):
     assert "Yahoo Fantasy Sports" in yahoo_team_page_html
 
 

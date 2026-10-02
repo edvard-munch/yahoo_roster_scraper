@@ -207,9 +207,9 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
     monkeypatch.setattr(
         cli.schedule_scraper,
         "get_schedule",
-        lambda proxies, proxy=None, schedule_url=None, start_date=None, end_date=None: (
+        lambda start_date=None, end_date=None, start_date_override=None: (
             {"BOS": {"GL": 3}},
-            proxy,
+            None,
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
@@ -272,9 +272,15 @@ def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
     monkeypatch.setattr(
         cli.schedule_scraper,
         "get_schedule",
-        lambda proxies, proxy=None, schedule_url=None, start_date=None, end_date=None: (
-            schedule_calls.append({"proxy": proxy, "schedule_url": schedule_url})
-            or ({"BOS": {"GL": 3}}, proxy)
+        lambda start_date=None, end_date=None, start_date_override=None: (
+            schedule_calls.append(
+                {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "start_date_override": start_date_override,
+                }
+            )
+            or ({"BOS": {"GL": 3}}, None)
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
@@ -290,14 +296,16 @@ def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
     cli.main()
 
     assert parse_calls[0]["proxy"] is None
-    assert schedule_calls[0]["proxy"] == stable_proxy
-    assert schedule_calls[0]["schedule_url"] is None
+    assert schedule_calls[0]["start_date"] is None
+    assert schedule_calls[0]["end_date"] is None
+    assert schedule_calls[0]["start_date_override"] is None
     assert process_calls[0]["proxy"] == stable_proxy
 
 
-def test_main_passes_custom_schedule_url_override_to_schedule_scraper(monkeypatch):
+def test_main_passes_schedule_start_date_override_to_schedule_scraper(monkeypatch):
     validate_results = iter([cli.SEASON_CHOICES["in_season"], "n", cli.FORMAT_CHOICES["xlsx"]])
-    inputs = iter(["19715", "https://example.com/custom-schedule"])
+    inputs = iter(["19715", "2026-10-02"])
+    override_date = datetime.date(2026, 10, 2)
     schedule_calls = []
 
     workbook = type(
@@ -325,16 +333,15 @@ def test_main_passes_custom_schedule_url_override_to_schedule_scraper(monkeypatc
     monkeypatch.setattr(
         cli.schedule_scraper,
         "get_schedule",
-        lambda proxies, proxy=None, schedule_url=None, start_date=None, end_date=None: (
+        lambda start_date=None, end_date=None, start_date_override=None: (
             schedule_calls.append(
                 {
-                    "proxy": proxy,
-                    "schedule_url": schedule_url,
                     "start_date": start_date,
                     "end_date": end_date,
+                    "start_date_override": start_date_override,
                 }
             )
-            or ({"BOS": {"GL": 3}}, proxy)
+            or ({"BOS": {"GL": 3}}, None)
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
@@ -345,7 +352,7 @@ def test_main_passes_custom_schedule_url_override_to_schedule_scraper(monkeypatc
 
     cli.main()
 
-    assert schedule_calls[0]["schedule_url"] == "https://example.com/custom-schedule"
+    assert schedule_calls[0]["start_date_override"] == override_date
     assert schedule_calls[0]["start_date"] is None
     assert schedule_calls[0]["end_date"] is None
 
@@ -394,15 +401,15 @@ def test_main_uses_matchup_date_range_for_longer_than_week_xlsx(monkeypatch):
     monkeypatch.setattr(
         cli.schedule_scraper,
         "get_schedule",
-        lambda proxies, proxy=None, schedule_url=None, start_date=None, end_date=None: (
+        lambda start_date=None, end_date=None, start_date_override=None: (
             schedule_calls.append(
                 {
-                    "schedule_url": schedule_url,
                     "start_date": start_date,
                     "end_date": end_date,
+                    "start_date_override": start_date_override,
                 }
             )
-            or ({"BOS": {"GL": 3}}, proxy)
+            or ({"BOS": {"GL": 3}}, None)
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
@@ -413,9 +420,9 @@ def test_main_uses_matchup_date_range_for_longer_than_week_xlsx(monkeypatch):
 
     cli.main()
 
-    assert schedule_calls[0]["schedule_url"] is None
     assert schedule_calls[0]["start_date"] == real_date(2026, 4, 1)
     assert schedule_calls[0]["end_date"] == datetime.date(2026, 4, 4)
+    assert schedule_calls[0]["start_date_override"] is None
 
 
 def test_main_falls_back_to_weekly_schedule_when_matchup_range_not_detected(monkeypatch):
@@ -449,15 +456,15 @@ def test_main_falls_back_to_weekly_schedule_when_matchup_range_not_detected(monk
     monkeypatch.setattr(
         cli.schedule_scraper,
         "get_schedule",
-        lambda proxies, proxy=None, schedule_url=None, start_date=None, end_date=None: (
+        lambda start_date=None, end_date=None, start_date_override=None: (
             schedule_calls.append(
                 {
-                    "schedule_url": schedule_url,
                     "start_date": start_date,
                     "end_date": end_date,
+                    "start_date_override": start_date_override,
                 }
             )
-            or ({"BOS": {"GL": 3}}, proxy)
+            or ({"BOS": {"GL": 3}}, None)
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
@@ -468,6 +475,28 @@ def test_main_falls_back_to_weekly_schedule_when_matchup_range_not_detected(monk
 
     cli.main()
 
-    assert schedule_calls[0]["schedule_url"] is None
     assert schedule_calls[0]["start_date"] is None
     assert schedule_calls[0]["end_date"] is None
+    assert schedule_calls[0]["start_date_override"] is None
+
+
+def test_prompt_schedule_start_date_override_returns_none_on_blank(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda *args, **kwargs: "")
+
+    assert cli.prompt_schedule_start_date_override() is None
+
+
+def test_prompt_schedule_start_date_override_parses_valid_date(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda *args, **kwargs: "2026-10-02")
+
+    assert cli.prompt_schedule_start_date_override() == datetime.date(2026, 10, 2)
+
+
+def test_prompt_schedule_start_date_override_reprompts_on_invalid_date(monkeypatch, capsys):
+    inputs = iter(["not-a-date", "2026-10-02"])
+    monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
+
+    result = cli.prompt_schedule_start_date_override()
+
+    assert result == datetime.date(2026, 10, 2)
+    assert cli.SCHEDULE_START_DATE_INVALID_MESSAGE in capsys.readouterr().out
