@@ -134,13 +134,23 @@ def process_links(
             }
             print(f"Schedule teams not found: {mapped_preview}")
 
-        proxy = matchups_service.process_matchups(
+        matchup_rows, proxy = matchups_service.process_matchups(
             matchups_context,
             matchup_links,
             team_totals_dict,
             proxies,
-            matchups_worksheet,
             proxy=proxy,
         )
 
+        write_matchups_to_xlsx(matchups_context, matchups_worksheet, matchup_rows)
+
     return proxy
+
+
+def write_matchups_to_xlsx(matchups_context, worksheet, matchup_rows):
+    columns = matchups_context.columns
+    worksheet.set_column(*columns["second"], matchups_context.wide_column_width)
+    worksheet.set_column(*columns["first"], matchups_context.wide_column_width)
+
+    for index, row in enumerate(matchup_rows):
+        worksheet.write_row(index, 0, row)

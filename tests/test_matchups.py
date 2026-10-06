@@ -5,18 +5,6 @@ import bs4
 from roster_scraper.services import matchups
 
 
-class WorksheetSpy:
-    def __init__(self):
-        self.columns = []
-        self.rows = []
-
-    def set_column(self, *args):
-        self.columns.append(args)
-
-    def write_row(self, index, col, row):
-        self.rows.append((index, col, list(row)))
-
-
 def _build_soup(value_g="1", value_a="2"):
     html = f"""
     <html>
@@ -53,8 +41,7 @@ def _build_context(parse_full_page):
     )
 
 
-def test_process_matchups_writes_headers_once_and_aggregates_totals():
-    worksheet = WorksheetSpy()
+def test_process_matchups_returns_headers_once_and_aggregates_totals():
     soups = [_build_soup("1", "2"), _build_soup("2", "3")]
 
     def parse_full_page(*args, **kwargs):
@@ -62,43 +49,36 @@ def test_process_matchups_writes_headers_once_and_aggregates_totals():
 
     context = _build_context(parse_full_page)
 
-    matchups.process_matchups(
+    rows, _ = matchups.process_matchups(
         context,
         matchup_links=["https://example.com/m1", "https://example.com/m2"],
         team_totals_dict={"Team A": {"G": 10.0, "A": 20.0}},
         proxies=[],
-        worksheet=worksheet,
     )
 
-    assert worksheet.columns == [(1, 1, 20), (0, 0, 20)]
-
-    header_rows = [row for _, _, row in worksheet.rows if row[:3] == ["Team", "G", "A"]]
+    header_rows = [row for row in rows if row[:3] == ["Team", "G", "A"]]
     assert len(header_rows) == 1
 
-    data_rows = [row for _, _, row in worksheet.rows if row and row[0] == "Team A"]
+    data_rows = [row for row in rows if row and row[0] == "Team A"]
     assert data_rows[0][:3] == ["Team A", 11.0, 22.0]
     assert data_rows[1][:3] == ["Team A", 12.0, 23.0]
 
 
 def test_process_matchups_treats_non_numeric_values_as_zero_before_prognosis():
-    worksheet = WorksheetSpy()
-
     context = _build_context(lambda *args, **kwargs: (_build_soup("N/A", "-"), None))
 
-    matchups.process_matchups(
+    rows, _ = matchups.process_matchups(
         context,
         matchup_links=["https://example.com/m1"],
         team_totals_dict={"Team A": {"G": 5.0, "A": 7.0}},
         proxies=[],
-        worksheet=worksheet,
     )
 
-    data_rows = [row for _, _, row in worksheet.rows if row and row[0] == "Team A"]
+    data_rows = [row for row in rows if row and row[0] == "Team A"]
     assert data_rows[0][:3] == ["Team A", 5.0, 7.0]
 
 
 def test_process_matchups_uses_initial_proxy_when_proxies_enabled():
-    worksheet = WorksheetSpy()
     proxy_calls = []
     parse_calls = []
 
@@ -128,7 +108,6 @@ def test_process_matchups_uses_initial_proxy_when_proxies_enabled():
         matchup_links=["https://example.com/m1"],
         team_totals_dict={"Team A": {"G": 1.0, "A": 1.0}},
         proxies=proxies_list,
-        worksheet=worksheet,
     )
 
     assert len(proxy_calls) == 1
@@ -136,7 +115,6 @@ def test_process_matchups_uses_initial_proxy_when_proxies_enabled():
 
 
 def test_process_matchups_handles_missing_team_span_and_writes_spacer_rows():
-    worksheet = WorksheetSpy()
     html = """
     <html>
       <body>
@@ -156,26 +134,22 @@ def test_process_matchups_handles_missing_team_span_and_writes_spacer_rows():
 
     context = _build_context(lambda *args, **kwargs: (soup, None))
 
-    matchups.process_matchups(
+    rows, _ = matchups.process_matchups(
         context,
         matchup_links=["https://example.com/m1"],
         team_totals_dict={"Team A": {"G": 5.0, "A": 7.0}},
         proxies=[],
-        worksheet=worksheet,
     )
 
-    data_rows = [
-        row for _, _, row in worksheet.rows if row and row[0] in {"Fallback Team", "Team A"}
-    ]
+    data_rows = [row for row in rows if row and row[0] in {"Fallback Team", "Team A"}]
     assert data_rows[0][:3] == ["Fallback Team", "1", "2"]
     assert data_rows[1][:3] == ["Team A", 7.0, 10.0]
 
-    spacer_rows = [row for _, _, row in worksheet.rows if row == [None, None, None]]
+    spacer_rows = [row for row in rows if row == [None, None, None]]
     assert len(spacer_rows) == 1
 
 
 def test_process_matchups_skips_missing_table_and_continues(monkeypatch):
-    worksheet = WorksheetSpy()
     printed = []
     soups = [
         bs4.BeautifulSoup("<html><body><p>no table</p></body></html>", "lxml"),
@@ -192,16 +166,15 @@ def test_process_matchups_skips_missing_table_and_continues(monkeypatch):
 
     context = _build_context(parse_full_page)
 
-    matchups.process_matchups(
+    rows, _ = matchups.process_matchups(
         context,
         matchup_links=["https://example.com/m1", "https://example.com/m2"],
         team_totals_dict={"Team A": {"G": 10.0, "A": 20.0}},
         proxies=[],
-        worksheet=worksheet,
     )
 
     assert any(
         "Skipping matchup: result table not found (https://example.com/m1)" in m for m in printed
     )
-    data_rows = [row for _, _, row in worksheet.rows if row and row[0] == "Team A"]
+    data_rows = [row for row in rows if row and row[0] == "Team A"]
     assert data_rows[0][:3] == ["Team A", 13.0, 24.0]

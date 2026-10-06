@@ -23,11 +23,8 @@ def process_matchups(
     matchup_links,
     team_totals_dict,
     proxies,
-    worksheet,
     proxy=None,
 ) -> Any:
-    columns = context.columns
-    wide_column_width = context.wide_column_width
     number_of_matchups_processed_message = context.number_of_matchups_processed_message
     matchup_totals_parameter = context.matchup_totals_parameter
     matchup_result_classes = context.matchup_result_classes
@@ -35,11 +32,9 @@ def process_matchups(
     proxies_scraper = context.proxies_scraper
     parse_full_page = context.parse_full_page
     scrape_from_page = context.scrape_from_page
-    worksheet.set_column(*columns["second"], wide_column_width)
-    worksheet.set_column(*columns["first"], wide_column_width)
     headers = []
-    worksheet_row_number = 0
-    worksheet_rows = [[]]
+    row_number = 0
+    matchup_rows = [[]]
 
     if proxies and not proxy:
         proxy = proxies_scraper.get_proxy(proxies)
@@ -66,10 +61,10 @@ def process_matchups(
             headers = thead.find_all("th")
 
             for header in headers:
-                worksheet_rows[worksheet_row_number].append(header.string)
+                matchup_rows[row_number].append(header.string)
 
-            worksheet_row_number += 1
-            worksheet_rows.append([])
+            row_number += 1
+            matchup_rows.append([])
 
         rows = tbody.find_all("tr")
         number_of_cells = 0
@@ -90,9 +85,9 @@ def process_matchups(
                 except AttributeError:
                     name = cell.string
 
-                worksheet_rows[worksheet_row_number].append(name)
+                matchup_rows[row_number].append(name)
 
-            row_values = worksheet_rows[worksheet_row_number][1 : len(prognosis) + 1]
+            row_values = matchup_rows[row_number][1 : len(prognosis) + 1]
             prognosis_values = list(prognosis.values())
 
             for value_num, _ in enumerate(row_values):
@@ -103,19 +98,16 @@ def process_matchups(
 
                 row_values[value_num] = value + prognosis_values[value_num]
 
-            worksheet_rows[worksheet_row_number][1 : len(prognosis) + 1] = row_values
+            matchup_rows[row_number][1 : len(prognosis) + 1] = row_values
 
-            worksheet_row_number += 1
-            worksheet_rows.append([])
+            row_number += 1
+            matchup_rows.append([])
 
         print(number_of_matchups_processed_message.format(link_index + 1, len(matchup_links)))
         for _ in range(0, number_of_cells):
-            worksheet_rows[worksheet_row_number].append(None)
+            matchup_rows[row_number].append(None)
 
-        worksheet_row_number += 1
-        worksheet_rows.append([])
+        row_number += 1
+        matchup_rows.append([])
 
-    for index, row in enumerate(worksheet_rows):
-        worksheet.write_row(index, 0, row)
-
-    return proxy
+    return matchup_rows, proxy
