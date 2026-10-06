@@ -88,3 +88,15 @@ def test_get_body_uses_table_containing_header_row():
     body = cli.get_body(soup, schedule, season_in_progress=True)
 
     assert "Player One" in [item for column in body for item in column]
+
+
+def test_get_body_skips_spacer_cell():
+    soup = _build_soup(
+        '<tr><td class="pos-label">C</td><td class="player"><a class="Nowrap name F-link playernote">Player One</a><span class="Fz-xxs">BOS - C</span></td><td class="stat">10</td><td class="No-p Spacer"></td></tr>'
+    )
+    schedule = {"BOS": {cli.schedule_scraper.GAMES_LEFT_THIS_WEEK_COLUMN: 3}}
+
+    body = cli.get_body(soup, schedule, season_in_progress=True)
+
+    assert None not in [item for column in body for item in column]
+    assert body[-1] == [3]

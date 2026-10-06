@@ -102,6 +102,7 @@ STANDINGS_PAGE_URL = (
     "https://hockey.fantasysports.yahoo.com/hockey/{}?module=standings&lhst=stand#lhststand"
 )
 EMPTY_SPOT_CLASSES = "Nowrap emptyplayer Inlineblock"
+SPACER_CLASS = "Spacer"
 SPOT_CLASS = "pos-label"
 PLAYER_NAME_CLASS = "player"
 PLAYER_LINK_CLASSES = re.compile(r"Nowrap\s+name\s+F-link(?:\s+\S+)?", re.IGNORECASE)
@@ -207,6 +208,11 @@ def get_roster_header_row(soup):
     return header_row
 
 
+def is_spacer_cell(cell):
+    class_names = cell.get("class") or []
+    return SPACER_CLASS in class_names
+
+
 def get_headers(soup, *, season_in_progress):
     header_row = get_roster_header_row(soup)
 
@@ -218,6 +224,9 @@ def get_headers(soup, *, season_in_progress):
     start_adding = False
 
     for child in header_row.find_all(["th", "td"]):
+        if is_spacer_cell(child):
+            continue
+
         name = child.get_text(strip=True)
 
         if season_in_progress:
@@ -256,6 +265,9 @@ def get_body(soup, schedule, missing_schedule_teams=None, *, season_in_progress)
                 continue
 
         for cell in row:
+            if is_spacer_cell(cell):
+                continue
+
             if i == 0:
                 cell_values.append([])
 
