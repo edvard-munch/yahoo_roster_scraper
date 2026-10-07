@@ -55,7 +55,7 @@ def _build_context(tmp_path, choice, parse_clean_names_result=None, parse_for_js
         core_parsing=core_parsing,
         core_output=core_output,
         write_to_google_sheet=write_to_google_sheet,
-        workbook=SimpleNamespace(add_worksheet=lambda **kwargs: SimpleNamespace()),
+        stats_sink=None,
         scoring_columns=[],
         empty_spot_string="Empty",
         number_of_teams_processed_message="{}/{} teams ready",
@@ -75,7 +75,6 @@ def _build_context(tmp_path, choice, parse_clean_names_result=None, parse_for_js
         stats_page={},
         matchup_links=[],
         schedule={},
-        matchups_worksheet=SimpleNamespace(),
     )
 
     return calls, context

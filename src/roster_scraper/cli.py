@@ -16,6 +16,7 @@ from roster_scraper.services import proxies as proxies_scraper
 from roster_scraper.services import schedule as schedule_scraper
 from roster_scraper.services import matchups as matchups_service
 from roster_scraper.services import roster_workflow
+from roster_scraper.services import stats_sinks
 from roster_scraper.services import write_to_google_sheet
 from roster_scraper.core import output as core_output
 from roster_scraper.core import parsing as core_parsing
@@ -613,7 +614,7 @@ def get_matchup_date_range(matchup_link, proxies, proxy=None, today=None, league
     return date_range, proxy
 
 
-def build_roster_context(workbook, matchups_context, season_mode):
+def build_roster_context(stats_sink, matchups_context, season_mode):
     return roster_workflow.RosterWorkflowContext(
         format_choices=FORMAT_CHOICES,
         parser=PARSER,
@@ -622,7 +623,7 @@ def build_roster_context(workbook, matchups_context, season_mode):
         core_parsing=core_parsing,
         core_output=core_output,
         write_to_google_sheet=write_to_google_sheet,
-        workbook=workbook,
+        stats_sink=stats_sink,
         scoring_columns=SCORING_COLUMNS,
         empty_spot_string=EMPTY_SPOT_STRING,
         number_of_teams_processed_message=NUMBER_OF_TEAMS_PROCESSED_MESSAGE,
@@ -737,9 +738,14 @@ def main():
 
         filename = core_output.get_filename()
         workbook = xlsxwriter.Workbook(filename)
-        matchups_worksheet = workbook.add_worksheet(name=MATCHUPS_WORKSHEET_NAME)
+        stats_sink = stats_sinks.XlsxStatsSink(
+            workbook,
+            core_output,
+            matchups_context,
+            MATCHUPS_WORKSHEET_NAME,
+        )
 
-        roster_context = build_roster_context(workbook, matchups_context, season_mode)
+        roster_context = build_roster_context(stats_sink, matchups_context, season_mode)
 
         current_proxy = roster_workflow.process_links(
             roster_context,
@@ -749,11 +755,10 @@ def main():
             build_avg_stats_page(season_mode.just_started),
             matchup_links,
             schedule,
-            matchups_worksheet,
             proxy=current_proxy,
         )
 
-        workbook.close()
+        stats_sink.close()
         core_output.open_file(filename)
 
     else:

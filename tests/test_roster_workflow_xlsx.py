@@ -8,36 +8,25 @@ class DummyResponse:
         self.text = text
 
 
-class WorkbookSpy:
+class StatsSinkSpy:
     def __init__(self):
-        self.added = []
+        self.teams = []
+        self.matchups = []
 
-    def add_worksheet(self, name):
-        worksheet = SimpleNamespace(name=name)
-        self.added.append(worksheet)
-        return worksheet
+    def write_team(self, team_name, table):
+        self.teams.append((team_name, table))
 
-
-class MatchupsWorksheetSpy:
-    def __init__(self):
-        self.columns = []
-        self.rows = []
-
-    def set_column(self, *args):
-        self.columns.append(args)
-
-    def write_row(self, index, col, row):
-        self.rows.append((index, col, list(row)))
+    def write_matchups(self, rows):
+        self.matchups.append(rows)
 
 
 def _build_xlsx_context(proxy_enabled, get_body_impl):
     map_calls = []
-    write_calls = []
     matchup_calls = []
     get_proxy_calls = []
     get_response_calls = []
 
-    workbook = WorkbookSpy()
+    stats_sink = StatsSinkSpy()
 
     if proxy_enabled:
         proxies_scraper = SimpleNamespace(
@@ -94,14 +83,9 @@ def _build_xlsx_context(proxy_enabled, get_body_impl):
                 or {"G": [1, 2, 3.0], "Other": ["x"]}
             )
         ),
-        core_output=SimpleNamespace(
-            verify_sheet_name=lambda team_name: team_name.replace("/", ""),
-            write_to_xlsx=lambda table, worksheet: write_calls.append(
-                {"table": table, "worksheet": worksheet}
-            ),
-        ),
+        core_output=SimpleNamespace(),
         write_to_google_sheet=SimpleNamespace(google=lambda *_: None),
-        workbook=workbook,
+        stats_sink=stats_sink,
         scoring_columns=["G", "A"],
         empty_spot_string="Empty",
         number_of_teams_processed_message="{}/{} teams ready",
@@ -124,9 +108,8 @@ def _build_xlsx_context(proxy_enabled, get_body_impl):
 
     return (
         context,
-        workbook,
+        stats_sink,
         map_calls,
-        write_calls,
         matchup_calls,
         get_proxy_calls,
         get_response_calls,
@@ -134,12 +117,9 @@ def _build_xlsx_context(proxy_enabled, get_body_impl):
 
 
 def test_process_links_xlsx_builds_totals_and_dispatches_matchups_without_proxies():
-    matchups_worksheet = MatchupsWorksheetSpy()
-    context, workbook, map_calls, write_calls, matchup_calls, _, get_response_calls = (
-        _build_xlsx_context(
-            proxy_enabled=False,
-            get_body_impl=lambda soup, schedule, missing_schedule_teams: [["row"], [0]],
-        )
+    context, stats_sink, map_calls, matchup_calls, _, get_response_calls = _build_xlsx_context(
+        proxy_enabled=False,
+        get_body_impl=lambda soup, schedule, missing_schedule_teams: [["row"], [0]],
     )
 
     roster_workflow.process_links(
@@ -150,13 +130,11 @@ def test_process_links_xlsx_builds_totals_and_dispatches_matchups_without_proxie
         stats_page={"stat": "AS"},
         matchup_links=["https://example.com/m1"],
         schedule={"BOS": {"GL": 3}},
-        matchups_worksheet=matchups_worksheet,
     )
 
-    assert workbook.added[0].name == " TeamOne "
     assert len(map_calls) == 1
     assert map_calls[0]["season_in_progress"] is True
-    assert len(write_calls) == 1
+    assert stats_sink.teams == [(" Team/One ", {"G": [1, 2, 3.0], "Other": ["x"]})]
     assert len(get_response_calls) == 1
 
     assert len(matchup_calls) == 1
@@ -167,10 +145,11 @@ def test_process_links_xlsx_builds_totals_and_dispatches_matchups_without_proxie
     assert args[3] == []
     assert kwargs["proxy"] is None
 
-    assert matchups_worksheet.columns == [(1, 1, 20), (0, 0, 20)]
-    assert matchups_worksheet.rows == [
-        (0, 0, ["Team", "G"]),
-        (1, 0, ["Team A", 1.0]),
+    assert stats_sink.matchups == [
+        [
+            ["Team", "G"],
+            ["Team A", 1.0],
+        ]
     ]
 
 
@@ -183,12 +162,13 @@ def test_process_links_xlsx_uses_proxy_path_and_reports_missing_schedule_teams(
         lambda *args, **kwargs: printed.append(" ".join(str(arg) for arg in args)),
     )
 
-    matchups_worksheet = MatchupsWorksheetSpy()
-    context, _, _, _, matchup_calls, get_proxy_calls, get_response_calls = _build_xlsx_context(
-        proxy_enabled=True,
-        get_body_impl=lambda soup, schedule, missing_schedule_teams: (
-            missing_schedule_teams.add("XYZ") or [["row"], [0]]
-        ),
+    context, stats_sink, _, matchup_calls, get_proxy_calls, get_response_calls = (
+        _build_xlsx_context(
+            proxy_enabled=True,
+            get_body_impl=lambda soup, schedule, missing_schedule_teams: (
+                missing_schedule_teams.add("XYZ") or [["row"], [0]]
+            ),
+        )
     )
 
     roster_workflow.process_links(
@@ -199,7 +179,6 @@ def test_process_links_xlsx_uses_proxy_path_and_reports_missing_schedule_teams(
         stats_page={"stat": "AS"},
         matchup_links=[],
         schedule={"BOS": {"GL": 3}},
-        matchups_worksheet=matchups_worksheet,
     )
 
     assert len(get_proxy_calls) == 0
@@ -208,8 +187,10 @@ def test_process_links_xlsx_uses_proxy_path_and_reports_missing_schedule_teams(
     assert len(matchup_calls) == 1
     _, kwargs = matchup_calls[0]
     assert kwargs["proxy"] == {"http": "1.1.1.1:80", "https": "1.1.1.1:80"}
-    assert matchups_worksheet.rows == [
-        (0, 0, ["Team", "G"]),
-        (1, 0, ["Team A", 1.0]),
+    assert stats_sink.matchups == [
+        [
+            ["Team", "G"],
+            ["Team A", 1.0],
+        ]
     ]
     assert any("Schedule teams not found" in message for message in printed)

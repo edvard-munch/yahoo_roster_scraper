@@ -23,10 +23,11 @@ def test_process_links_skips_team_when_headers_missing(monkeypatch):
         get_proxy=lambda proxies: None,
     )
 
-    workbook = SimpleNamespace(
-        add_worksheet=lambda **kwargs: (_ for _ in ()).throw(
-            AssertionError("worksheet should not be created")
-        )
+    stats_sink = SimpleNamespace(
+        write_team=lambda *args: (_ for _ in ()).throw(
+            AssertionError("team should not be written")
+        ),
+        write_matchups=lambda rows: None,
     )
 
     matchups_calls = []
@@ -54,7 +55,7 @@ def test_process_links_skips_team_when_headers_missing(monkeypatch):
             write_to_xlsx=lambda *args, **kwargs: None,
         ),
         write_to_google_sheet=SimpleNamespace(google=lambda *_: None),
-        workbook=workbook,
+        stats_sink=stats_sink,
         scoring_columns=[],
         empty_spot_string="Empty",
         number_of_teams_processed_message="{}/{} teams ready",
@@ -75,11 +76,6 @@ def test_process_links_skips_team_when_headers_missing(monkeypatch):
         lambda *args, **kwargs: printed.append(" ".join(str(arg) for arg in args)),
     )
 
-    matchups_worksheet = SimpleNamespace(
-        set_column=lambda *args: None,
-        write_row=lambda *args: None,
-    )
-
     roster_workflow.process_links(
         context,
         links=["https://example.com/team/1"],
@@ -88,7 +84,6 @@ def test_process_links_skips_team_when_headers_missing(monkeypatch):
         stats_page={},
         matchup_links=[],
         schedule={},
-        matchups_worksheet=matchups_worksheet,
     )
 
     assert any(
@@ -96,33 +91,3 @@ def test_process_links_skips_team_when_headers_missing(monkeypatch):
     )
     assert any("Roster header row not found" in message for message in printed)
     assert len(matchups_calls) == 1
-
-
-class MatchupsWorksheetSpy:
-    def __init__(self):
-        self.columns = []
-        self.rows = []
-
-    def set_column(self, *args):
-        self.columns.append(args)
-
-    def write_row(self, index, col, row):
-        self.rows.append((index, col, list(row)))
-
-
-def test_write_matchups_to_xlsx_sets_widths_and_writes_rows():
-    context = SimpleNamespace(
-        columns={"first": (0, 0), "second": (1, 1)},
-        wide_column_width=25,
-    )
-    worksheet = MatchupsWorksheetSpy()
-    rows = [["Team", "G"], ["Team A", 1.0], [None, None]]
-
-    roster_workflow.write_matchups_to_xlsx(context, worksheet, rows)
-
-    assert worksheet.columns == [(1, 1, 25), (0, 0, 25)]
-    assert worksheet.rows == [
-        (0, 0, ["Team", "G"]),
-        (1, 0, ["Team A", 1.0]),
-        (2, 0, [None, None]),
-    ]

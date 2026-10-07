@@ -5,6 +5,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from .stats_sinks import StatsSink
+
 
 @dataclass
 class RosterWorkflowContext:
@@ -15,7 +17,7 @@ class RosterWorkflowContext:
     core_parsing: Any
     core_output: Any
     write_to_google_sheet: Any
-    workbook: Any
+    stats_sink: StatsSink | None
     scoring_columns: list[str]
     empty_spot_string: str
     number_of_teams_processed_message: str
@@ -35,7 +37,6 @@ def process_links(
     stats_page,
     matchup_links=None,
     schedule=None,
-    matchups_worksheet=None,
     proxy=None,
 ) -> Any:
     format_choices = context.format_choices
@@ -45,7 +46,7 @@ def process_links(
     core_parsing = context.core_parsing
     core_output = context.core_output
     write_to_google_sheet = context.write_to_google_sheet
-    workbook = context.workbook
+    stats_sink = context.stats_sink
     scoring_columns = context.scoring_columns
     empty_spot_string = context.empty_spot_string
     number_of_teams_processed_message = context.number_of_teams_processed_message
@@ -90,9 +91,7 @@ def process_links(
             body = get_body(soup, schedule, missing_schedule_teams)
             table = core_parsing.map_headers_to_body(headers, body, True)
 
-            sheet_name = core_output.verify_sheet_name(team_name)
-            worksheet = workbook.add_worksheet(name=sheet_name)
-            core_output.write_to_xlsx(table, worksheet)
+            stats_sink.write_team(team_name, table)
 
             team_totals = {}
             for col in scoring_columns:
@@ -142,15 +141,6 @@ def process_links(
             proxy=proxy,
         )
 
-        write_matchups_to_xlsx(matchups_context, matchups_worksheet, matchup_rows)
+        stats_sink.write_matchups(matchup_rows)
 
     return proxy
-
-
-def write_matchups_to_xlsx(matchups_context, worksheet, matchup_rows):
-    columns = matchups_context.columns
-    worksheet.set_column(*columns["second"], matchups_context.wide_column_width)
-    worksheet.set_column(*columns["first"], matchups_context.wide_column_width)
-
-    for index, row in enumerate(matchup_rows):
-        worksheet.write_row(index, 0, row)
