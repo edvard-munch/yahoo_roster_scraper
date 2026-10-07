@@ -11,7 +11,7 @@ from roster_scraper.services import write_to_google_sheet
 
 
 def test_sheet_service_returns_spreadsheets_client_with_valid_token(monkeypatch):
-    creds = SimpleNamespace(valid=True)
+    creds = SimpleNamespace(valid=True, has_scopes=lambda scopes: True)
 
     monkeypatch.setattr(google_api_auth.os.path, "exists", lambda path: True)
     monkeypatch.setattr("builtins.open", mock_open())
@@ -33,8 +33,10 @@ def test_sheet_service_runs_oauth_flow_when_refresh_fails(monkeypatch):
     def raise_refresh_error(_request):
         raise exceptions.RefreshError("expired")
 
-    stale_creds = SimpleNamespace(valid=False, refresh=raise_refresh_error)
-    fresh_creds = SimpleNamespace(valid=True)
+    stale_creds = SimpleNamespace(
+        valid=False, refresh=raise_refresh_error, has_scopes=lambda scopes: True
+    )
+    fresh_creds = SimpleNamespace(valid=True, has_scopes=lambda scopes: True)
     flow = SimpleNamespace(run_local_server=lambda port: fresh_creds)
 
     dumped = {}

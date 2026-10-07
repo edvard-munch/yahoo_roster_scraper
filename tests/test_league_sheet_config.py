@@ -37,6 +37,7 @@ class ServiceSpy:
 def test_config_round_trip_through_rows():
     config = league_sheet_config.LeagueConfig(
         league_id="12922",
+        league_name="FNH 26-27",
         season="preseason",
         start_date_override="2026-10-02",
         last_run="2026-10-02T17:25:00",
@@ -50,6 +51,7 @@ def test_config_round_trip_through_rows():
 def test_config_from_rows_ignores_blank_and_unknown_keys():
     rows = [
         ["league_id", "12922"],
+        ["league_name", "FNH 26-27"],
         ["", "ignored"],
         [],
         ["season", "in_season"],
@@ -59,6 +61,7 @@ def test_config_from_rows_ignores_blank_and_unknown_keys():
     config = league_sheet_config.config_from_rows(rows)
 
     assert config.league_id == "12922"
+    assert config.league_name == "FNH 26-27"
     assert config.season == "in_season"
     assert config.start_date_override is None
     assert config.last_run is None
@@ -89,6 +92,7 @@ def test_write_league_config_writes_rows_to_config_sheet():
     service = ServiceSpy()
     config = league_sheet_config.LeagueConfig(
         league_id="12922",
+        league_name="FNH 26-27",
         season="preseason",
         start_date_override="2026-10-02",
         last_run="2026-10-02T17:25:00",

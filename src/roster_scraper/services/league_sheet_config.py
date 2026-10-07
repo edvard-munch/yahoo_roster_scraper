@@ -6,6 +6,7 @@ CONFIG_SHEET_TITLE = "_config"
 LAST_RUN_FORMAT = "%Y-%m-%dT%H:%M:%S"
 
 LEAGUE_ID_KEY = "league_id"
+LEAGUE_NAME_KEY = "league_name"
 SEASON_KEY = "season"
 START_DATE_OVERRIDE_KEY = "start_date_override"
 LAST_RUN_KEY = "last_run"
@@ -14,6 +15,7 @@ LAST_RUN_KEY = "last_run"
 @dataclass
 class LeagueConfig:
     league_id: str = ""
+    league_name: str = ""
     season: str = ""
     start_date_override: str | None = None
     last_run: str | None = None
@@ -23,6 +25,7 @@ class LeagueConfig:
 def config_to_rows(config):
     return [
         [LEAGUE_ID_KEY, config.league_id],
+        [LEAGUE_NAME_KEY, config.league_name],
         [SEASON_KEY, config.season],
         [START_DATE_OVERRIDE_KEY, config.start_date_override or ""],
         [LAST_RUN_KEY, config.last_run or ""],
@@ -45,6 +48,8 @@ def config_from_rows(rows):
 
         if key == LEAGUE_ID_KEY:
             config.league_id = value
+        elif key == LEAGUE_NAME_KEY:
+            config.league_name = value
         elif key == SEASON_KEY:
             config.season = value
         elif key == START_DATE_OVERRIDE_KEY:
