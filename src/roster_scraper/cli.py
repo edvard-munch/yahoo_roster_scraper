@@ -11,6 +11,7 @@ from functools import partial
 from urllib.parse import urljoin
 
 from roster_scraper import application
+from roster_scraper import runtime as scraper_runtime
 from roster_scraper.services import positions as positions_scraper
 from roster_scraper.services import proxies as proxies_scraper
 from roster_scraper.services import schedule as schedule_scraper
@@ -636,13 +637,14 @@ def get_matchup_date_range(matchup_link, proxies, proxy=None, today=None, league
 
 
 def build_matchups_context():
-    return matchups_service.MatchupsContext(
+    return scraper_runtime.build_matchups_context(
+        matchups_service.MatchupsContext,
         columns=COLUMNS,
         wide_column_width=WIDE_COLUMN_WIDTH,
-        number_of_matchups_processed_message=NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE,
-        matchup_totals_parameter=MATCHUP_TOTALS_PARAMETER,
-        matchup_result_classes=MATCHUP_RESULT_CLASSES,
-        team_name_matchup_result_classes=TEAM_NAME_MATCHUP_RESULT_CLASSES,
+        processed_message=NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE,
+        totals_parameter=MATCHUP_TOTALS_PARAMETER,
+        result_classes=MATCHUP_RESULT_CLASSES,
+        team_name_classes=TEAM_NAME_MATCHUP_RESULT_CLASSES,
         proxies_scraper=proxies_scraper,
         parse_full_page=parse_full_page,
         scrape_from_page=scrape_from_page,
@@ -672,7 +674,8 @@ def build_roster_context(stats_sink, matchups_context, season_mode):
 
 
 def build_scrape_dependencies():
-    return application.ScrapeDependencies(
+    return scraper_runtime.build_scrape_dependencies(
+        application.ScrapeDependencies,
         base_fantasy_url=BASE_FANTASY_URL,
         xlsx_format=FORMAT_CHOICES["xlsx"],
         matchup_range_days_threshold=MATCHUP_RANGE_DAYS_THRESHOLD,
