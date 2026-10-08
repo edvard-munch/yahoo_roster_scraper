@@ -1,6 +1,7 @@
 import os
 import pickle
 
+import google.auth
 from google.auth import exceptions
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -12,6 +13,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive.file",
 ]
+CLOUD_SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 CREDENTIALS_FILE = "google_credentials.json"
 TOKEN_FILE = "google_token.pickle"
 API_VERSION = "v4"
@@ -45,6 +47,12 @@ def get_credentials():
 
 def sheet_service():
     return build(API_SERVICE_NAME, API_VERSION, credentials=get_credentials()).spreadsheets()
+
+
+def cloud_sheet_service():
+    """Build a Sheets client using ADC, without installed-app OAuth or token files."""
+    credentials, _ = google.auth.default(scopes=CLOUD_SCOPES)
+    return build(API_SERVICE_NAME, API_VERSION, credentials=credentials).spreadsheets()
 
 
 def drive_service():
