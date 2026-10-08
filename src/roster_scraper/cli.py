@@ -9,9 +9,10 @@ import datetime
 import xlsxwriter
 from dataclasses import dataclass
 from functools import partial
-from typing import Any
 from urllib.parse import urljoin
 
+from roster_scraper import application
+from roster_scraper.application import SeasonMode
 from roster_scraper.services import positions as positions_scraper
 from roster_scraper.services import proxies as proxies_scraper
 from roster_scraper.services import schedule as schedule_scraper
@@ -37,22 +38,6 @@ FULL_STATS_OUTPUT_CHOICES = {"xlsx": "1", "google_sheets": "2"}
 class SeasonMode:
     in_progress: bool
     just_started: bool
-
-
-@dataclass(frozen=True)
-class ScrapeConfig:
-    league_id: str
-    season_mode: SeasonMode
-    output_format: str
-    start_date_override: datetime.date | None = None
-
-
-@dataclass
-class PreparedLeague:
-    soup: bs4.BeautifulSoup
-    links: tuple[list[str], list[str]]
-    proxies: list
-    current_proxy: Any = None
 
 
 SEASON_CHOICES = {"preseason": "1", "just_started": "2", "in_season": "3"}
@@ -139,13 +124,6 @@ TEAM_AND_POSITION_SPAN_CLASS = "Fz-xxs"
 MATCHUP_TOTALS_PARAMETER = "&date=total"
 MATCHUP_RANGE_DAYS_THRESHOLD = 7
 SCHEDULE_START_DATE_OVERRIDE_MESSAGE = "Using schedule start date override: {}"
-MATCHUP_RANGE_DETECTED_MESSAGE = "Detected matchup range: {} -> {} ({} days)"
-MATCHUP_RANGE_MODE_MESSAGE = "Using matchup range for schedule scraping"
-MATCHUP_RANGE_EFFECTIVE_MESSAGE = "Effective remaining matchup range: {} -> {}"
-MATCHUP_WEEKLY_MODE_MESSAGE = "Using default weekly schedule scraping"
-MATCHUP_RANGE_NOT_FOUND_MESSAGE = (
-    "Could not detect matchup date range; using default weekly schedule ({})"
-)
 EMPTY_SPOT_STRING = "Empty"
 EMPTY_CELL = "-"
 
@@ -703,109 +681,22 @@ def build_roster_context(stats_sink, matchups_context, season_mode):
     )
 
 
-def prepare_league(league_id, season_mode, proxies, current_proxy=None):
-    league_link = BASE_FANTASY_URL + league_id
-    soup, current_proxy = parse_full_page(
-        league_link,
-        proxies,
-        current_proxy,
-    )
-    league_links, current_proxy = resolve_league_links(
-        soup,
-        league_link,
-        league_id,
-        season_mode,
-        proxies,
-        current_proxy,
-    )
-
-    if not league_links or not league_links[1]:
-        return None
-
-    return PreparedLeague(
-        soup=soup,
-        links=league_links,
-        proxies=proxies,
-        current_proxy=current_proxy,
-    )
-
-
-def run_scrape(config, prepared_league, matchups_context, stats_sink=None):
-    matchup_links, team_links = prepared_league.links
-    current_proxy = prepared_league.current_proxy
-
-    if config.output_format == FORMAT_CHOICES["xlsx"]:
-        if stats_sink is None:
-            raise ValueError("Full stats output requires a stats sink")
-
-        start_date = None
-        end_date = None
-        if matchup_links:
-            matchup_date_range, current_proxy = get_matchup_date_range(
-                matchup_links[0],
-                prepared_league.proxies,
-                current_proxy,
-                league_soup=prepared_league.soup,
-            )
-            if matchup_date_range:
-                parsed_start_date, parsed_end_date = matchup_date_range
-                duration_days = (parsed_end_date - parsed_start_date).days + 1
-                print(
-                    MATCHUP_RANGE_DETECTED_MESSAGE.format(
-                        parsed_start_date,
-                        parsed_end_date,
-                        duration_days,
-                    )
-                )
-                if duration_days > MATCHUP_RANGE_DAYS_THRESHOLD:
-                    today = datetime.date.today()
-                    start_date = max(today, parsed_start_date)
-                    end_date = parsed_end_date
-                    print(MATCHUP_RANGE_MODE_MESSAGE)
-                    print(MATCHUP_RANGE_EFFECTIVE_MESSAGE.format(start_date, end_date))
-                else:
-                    print(MATCHUP_WEEKLY_MODE_MESSAGE)
-            else:
-                print(MATCHUP_RANGE_NOT_FOUND_MESSAGE.format(matchup_links[0]))
-
-        schedule, _ = schedule_scraper.get_schedule(
-            start_date=start_date,
-            end_date=end_date,
-            start_date_override=config.start_date_override,
-        )
-        roster_context = build_roster_context(
-            stats_sink,
-            matchups_context,
-            config.season_mode,
-        )
-        current_proxy = roster_workflow.process_links(
-            roster_context,
-            team_links,
-            prepared_league.proxies,
-            config.output_format,
-            build_avg_stats_page(config.season_mode.just_started),
-            matchup_links,
-            schedule,
-            proxy=current_proxy,
-        )
-        stats_sink.close()
-        return current_proxy
-
-    if prepared_league.soup.find(string=re.compile(PLAYOFFS_HEADER)):
-        team_links, current_proxy = get_links_from_standings(
-            config.league_id,
-            prepared_league.proxies,
-            current_proxy,
-        )
-
-    roster_context = build_roster_context(None, matchups_context, config.season_mode)
-    return roster_workflow.process_links(
-        roster_context,
-        team_links,
-        prepared_league.proxies,
-        config.output_format,
-        RESEARCH_STATS_PAGE,
-        proxy=current_proxy,
+def build_scrape_dependencies():
+    return application.ScrapeDependencies(
+        base_fantasy_url=BASE_FANTASY_URL,
+        xlsx_format=FORMAT_CHOICES["xlsx"],
+        matchup_range_days_threshold=MATCHUP_RANGE_DAYS_THRESHOLD,
+        playoffs_header=PLAYOFFS_HEADER,
+        research_stats_page=RESEARCH_STATS_PAGE,
+        parse_full_page=parse_full_page,
+        resolve_league_links=resolve_league_links,
+        get_matchup_date_range=get_matchup_date_range,
+        get_links_from_standings=get_links_from_standings,
+        get_schedule=schedule_scraper.get_schedule,
+        build_roster_context=build_roster_context,
+        build_avg_stats_page=build_avg_stats_page,
+        process_links=roster_workflow.process_links,
+        today=datetime.date.today,
     )
 
 
@@ -825,11 +716,16 @@ def main():
         proxies = []
 
     league_id = input(INPUT_LEAGUE_ID_MESSAGE)
-    prepared_league = prepare_league(league_id, season_mode, proxies)
+    scrape_dependencies = build_scrape_dependencies()
+    prepared_league = application.prepare_league(
+        league_id, season_mode, proxies, scrape_dependencies
+    )
 
     while not prepared_league:
         league_id = input(INPUT_LEAGUE_ID_MESSAGE)
-        prepared_league = prepare_league(league_id, season_mode, proxies)
+        prepared_league = application.prepare_league(
+            league_id, season_mode, proxies, scrape_dependencies
+        )
 
     choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
     while not choice:
@@ -879,13 +775,15 @@ def main():
             )
         )
 
-    config = ScrapeConfig(
+    config = application.ScrapeConfig(
         league_id=league_id,
         season_mode=season_mode,
         output_format=choice,
         start_date_override=start_date_override,
     )
-    run_scrape(config, prepared_league, matchups_context, stats_sink)
+    application.run_scrape(
+        config, prepared_league, matchups_context, scrape_dependencies, stats_sink
+    )
 
     if filename:
         core_output.open_file(filename)
