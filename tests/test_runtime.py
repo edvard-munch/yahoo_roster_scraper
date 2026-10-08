@@ -85,3 +85,23 @@ def test_build_scrape_dependencies_maps_runtime_values():
     assert result.resolve_league_links is callbacks[1]
     assert result.process_links is callbacks[7]
     assert result.today is callbacks[8]
+
+
+def test_default_sheet_runtime_builds_actual_contexts_without_interaction(monkeypatch):
+    from roster_scraper import application, cli
+    from roster_scraper.services import google_api_auth, matchups
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Runtime construction must not prompt, scrape, or start OAuth")
+
+    monkeypatch.setattr("builtins.input", forbidden)
+    monkeypatch.setattr(google_api_auth, "get_credentials", forbidden)
+    monkeypatch.setattr(cli.proxies_scraper, "get_response", forbidden)
+
+    dependencies, context = runtime.build_default_sheet_runtime()
+
+    assert isinstance(dependencies, application.ScrapeDependencies)
+    assert isinstance(context, matchups.MatchupsContext)
+    assert dependencies.parse_full_page is cli.parse_full_page
+    assert dependencies.resolve_league_links is cli.resolve_league_links
+    assert context.parse_full_page is dependencies.parse_full_page

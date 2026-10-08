@@ -85,3 +85,53 @@ gcloud auth application-default login \
 
 Local ADC is separate from the scraper's OAuth token. A successful local-user ADC
 test does not verify the deployed service account's spreadsheet access.
+
+## Authenticated HTTP scraper endpoint
+
+The synchronous FastAPI service provides:
+
+- `GET /health`: public liveness check, with no scraping or Google authorization.
+- `POST /scrape`: accepts only `{"spreadsheet_id": "<spreadsheet ID>"}` and reads
+  league/season/date settings from that spreadsheet's `_config` tab.
+
+After installing dependencies (`uv sync --group dev`), start it locally:
+
+```bash
+export SCRAPER_API_SECRET="$(openssl rand -hex 32)"
+uv run uvicorn roster_scraper.web:app --host 127.0.0.1 --port 8080
+```
+
+Keep the secret in your environment (Secret Manager when deployed), not in source
+code or the spreadsheet. Clients must send `Authorization: Bearer <secret>`.
+Anyone holding this secret can request runs against spreadsheets accessible to the
+backend identity, so restrict who can read it and rotate it if exposed.
+
+For example, from another terminal with the same secret configured:
+
+```bash
+curl http://127.0.0.1:8080/health
+curl -X POST http://127.0.0.1:8080/scrape \
+  -H "Authorization: Bearer $SCRAPER_API_SECRET" \
+  -H 'Content-Type: application/json' \
+  -d '{"spreadsheet_id":"YOUR_SPREADSHEET_ID"}'
+```
+
+**A successful POST performs a real refresh:** it clears/rewrites stats values and
+synchronizes team tabs. The response arrives after the run finishes. This endpoint
+uses `cloud_sheet_service()` (ADC); it never launches installed-app OAuth. Share
+that spreadsheet with the runtime service account as Editor, or configure local
+ADC as described above for testing. No Drive lookup or spreadsheet creation is
+performed by this endpoint.
+
+Responses: `200` complete, `401` missing/invalid bearer token, `422` malformed
+request or invalid `_config`, `502` league/upstream API failure, `503` missing
+server secret or unavailable Google credentials, `500` unexpected scraper failure.
+Upstream error bodies and bearer tokens are not returned or logged by the HTTP
+handler. Run details remain in `_config` and existing scraper logs.
+
+The HTTP layer creates Google clients per request. Its default runtime adapter
+reuses existing Yahoo parsing helpers without executing CLI prompts. Keep the
+existing `uv run yahoo-roster-scraper` command for interactive local runs.
+Cloud Run packaging, Apps Script integration, and distributed run locking are
+separate steps. Avoid overlapping runs against the same spreadsheet in this
+synchronous version; use a single worker/concurrency of one when deploying it.

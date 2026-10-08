@@ -58,3 +58,14 @@ def build_scrape_dependencies(
         process_links=process_links,
         today=today,
     )
+
+
+def build_default_sheet_runtime():
+    """Reuse current Yahoo callbacks without invoking CLI prompts or OAuth.
+
+    The parsing helpers still reside in cli.py; importing it does not run main().
+    Keep this adapter here so the HTTP entrypoint need not depend on that layout.
+    """
+    from . import cli
+
+    return cli.build_scrape_dependencies(), cli.build_matchups_context()
