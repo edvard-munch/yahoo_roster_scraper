@@ -15,6 +15,9 @@ from roster_scraper.services import positions as positions_scraper
 from roster_scraper.services import proxies as proxies_scraper
 from roster_scraper.services import schedule as schedule_scraper
 from roster_scraper.services import matchups as matchups_service
+from roster_scraper.services import google_api_auth
+from roster_scraper.services import league_sheet_config
+from roster_scraper.services import league_spreadsheets
 from roster_scraper.services import roster_workflow
 from roster_scraper.services import stats_sinks
 from roster_scraper.services import write_to_google_sheet
@@ -26,6 +29,7 @@ BASE_FANTASY_URL = "https://hockey.fantasysports.yahoo.com/hockey/"
 
 PROXY_CHOICES = {"Y": True, "n": False}
 FORMAT_CHOICES = {"xlsx": "1", "txt": "2", "json": "3", "google_sheets": "4"}
+FULL_STATS_OUTPUT_CHOICES = {"xlsx": "1", "google_sheets": "2"}
 
 
 @dataclass(frozen=True)
@@ -40,18 +44,22 @@ SEASON_MODES = {
     SEASON_CHOICES["just_started"]: SeasonMode(in_progress=True, just_started=True),
     SEASON_CHOICES["in_season"]: SeasonMode(in_progress=True, just_started=False),
 }
+SEASON_MODE_NAMES = {SEASON_MODES[choice]: name for name, choice in SEASON_CHOICES.items()}
 
 PARSER = "lxml"
 
 NUMBER_OF_TEAMS_PROCESSED_MESSAGE = "{}/{} teams ready"
 NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE = "{}/{} matchups ready"
 FORMAT_CHOICE_MESSAGE = (
-    "Input 1 for full stats xls tables\n"
+    "Input 1 for full stats tables\n"
     "Input 2 for simple txt rosters\n"
     "Input 3 for positions in JSON file\n"
     "Input 4 for writing positions to Google Sheets:\n"
 )
 
+FULL_STATS_OUTPUT_MESSAGE = (
+    "Select full stats output:\nInput 1 for a local xlsx file\nInput 2 for Google Sheets:\n"
+)
 PROXIES_CHOICE_MESSAGE = "Use proxies? Y/n:\n"
 SEASON_MODE_MESSAGE = (
     "Select season mode:\n"
@@ -69,6 +77,8 @@ INCORRECT_CHOICE_MESSAGE = "Please select a correct option"
 LEAGUE_ID_INCORRECT_MESSAGE = "League with this ID does not exist or not publicly viewable"
 NO_MATCHUPS_FOUND_MESSAGE = "No matchups found (preseason/off-season); continuing with team links."
 LEAGUE_SCRAPING_SUCCESS_MESSAGE = "League's main page scraped!"
+GOOGLE_STATS_SPREADSHEET_URL_TEMPLATE = "https://docs.google.com/spreadsheets/d/{}"
+GOOGLE_STATS_SPREADSHEET_MESSAGE = "Google stats spreadsheet: {}"
 
 TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
 XLSX_FILENAME_TEMPLATE = "reports/stats_list_{}.xlsx"
@@ -380,6 +390,32 @@ def prompt_season_mode():
     return SEASON_MODES[season_choice]
 
 
+def prompt_full_stats_output():
+    output_choice = validate_input(FULL_STATS_OUTPUT_MESSAGE, FULL_STATS_OUTPUT_CHOICES.values())
+
+    while not output_choice:
+        output_choice = validate_input(
+            FULL_STATS_OUTPUT_MESSAGE, FULL_STATS_OUTPUT_CHOICES.values()
+        )
+
+    return output_choice
+
+
+def get_league_name(soup):
+    if not soup or not soup.title:
+        return ""
+    return soup.title.get_text(strip=True).split("|", 1)[0].strip()
+
+
+def build_google_league_config(league_id, league_soup, season_mode, start_date_override):
+    return league_sheet_config.LeagueConfig(
+        league_id=league_id,
+        league_name=get_league_name(league_soup),
+        season=SEASON_MODE_NAMES[season_mode],
+        start_date_override=start_date_override.isoformat() if start_date_override else None,
+    )
+
+
 def prompt_schedule_start_date_override():
     while True:
         raw_value = input(INPUT_SCHEDULE_START_DATE_MESSAGE).strip()
@@ -683,6 +719,10 @@ def main():
     while not choice:
         choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
 
+    full_stats_output = None
+    if choice == FORMAT_CHOICES["xlsx"]:
+        full_stats_output = prompt_full_stats_output()
+
     matchups_context = matchups_service.MatchupsContext(
         columns=COLUMNS,
         wide_column_width=WIDE_COLUMN_WIDTH,
@@ -736,14 +776,40 @@ def main():
             start_date_override=start_date_override,
         )
 
-        filename = core_output.get_filename()
-        workbook = xlsxwriter.Workbook(filename)
-        stats_sink = stats_sinks.XlsxStatsSink(
-            workbook,
-            core_output,
-            matchups_context,
-            MATCHUPS_WORKSHEET_NAME,
-        )
+        filename = None
+        if full_stats_output == FULL_STATS_OUTPUT_CHOICES["xlsx"]:
+            filename = core_output.get_filename()
+            workbook = xlsxwriter.Workbook(filename)
+            stats_sink = stats_sinks.XlsxStatsSink(
+                workbook,
+                core_output,
+                matchups_context,
+                MATCHUPS_WORKSHEET_NAME,
+            )
+        else:
+            sheets_service = google_api_auth.sheet_service()
+            drive_service = google_api_auth.drive_service()
+            config = build_google_league_config(
+                league_id,
+                main_page_soup,
+                season_mode,
+                start_date_override,
+            )
+            spreadsheet_id = league_spreadsheets.resolve_league_spreadsheet(
+                sheets_service,
+                drive_service,
+                config,
+            )
+            stats_sink = stats_sinks.GoogleSheetsStatsSink(
+                sheets_service,
+                spreadsheet_id,
+                config,
+            )
+            print(
+                GOOGLE_STATS_SPREADSHEET_MESSAGE.format(
+                    GOOGLE_STATS_SPREADSHEET_URL_TEMPLATE.format(spreadsheet_id)
+                )
+            )
 
         roster_context = build_roster_context(stats_sink, matchups_context, season_mode)
 
@@ -759,7 +825,8 @@ def main():
         )
 
         stats_sink.close()
-        core_output.open_file(filename)
+        if filename:
+            core_output.open_file(filename)
 
     else:
         playoffs_in_progress = main_page_soup.find(string=re.compile(PLAYOFFS_HEADER))

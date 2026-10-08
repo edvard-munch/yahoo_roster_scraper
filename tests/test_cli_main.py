@@ -177,7 +177,14 @@ def test_main_runs_google_mode_without_opening_local_file(monkeypatch):
 
 
 def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
-    validate_results = iter([cli.SEASON_CHOICES["just_started"], "n", cli.FORMAT_CHOICES["xlsx"]])
+    validate_results = iter(
+        [
+            cli.SEASON_CHOICES["just_started"],
+            "n",
+            cli.FORMAT_CHOICES["xlsx"],
+            cli.FULL_STATS_OUTPUT_CHOICES["xlsx"],
+        ]
+    )
     inputs = iter(["19715", ""])
     process_calls = []
     opened_files = []
@@ -234,7 +241,14 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
 
 
 def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
-    validate_results = iter([cli.SEASON_CHOICES["in_season"], "Y", cli.FORMAT_CHOICES["xlsx"]])
+    validate_results = iter(
+        [
+            cli.SEASON_CHOICES["in_season"],
+            "Y",
+            cli.FORMAT_CHOICES["xlsx"],
+            cli.FULL_STATS_OUTPUT_CHOICES["xlsx"],
+        ]
+    )
     inputs = iter(["19715", ""])
     parse_calls = []
     schedule_calls = []
@@ -303,7 +317,14 @@ def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
 
 
 def test_main_passes_schedule_start_date_override_to_schedule_scraper(monkeypatch):
-    validate_results = iter([cli.SEASON_CHOICES["in_season"], "n", cli.FORMAT_CHOICES["xlsx"]])
+    validate_results = iter(
+        [
+            cli.SEASON_CHOICES["in_season"],
+            "n",
+            cli.FORMAT_CHOICES["xlsx"],
+            cli.FULL_STATS_OUTPUT_CHOICES["xlsx"],
+        ]
+    )
     inputs = iter(["19715", "2026-10-02"])
     override_date = datetime.date(2026, 10, 2)
     schedule_calls = []
@@ -358,7 +379,14 @@ def test_main_passes_schedule_start_date_override_to_schedule_scraper(monkeypatc
 
 
 def test_main_uses_matchup_date_range_for_longer_than_week_xlsx(monkeypatch):
-    validate_results = iter([cli.SEASON_CHOICES["in_season"], "n", cli.FORMAT_CHOICES["xlsx"]])
+    validate_results = iter(
+        [
+            cli.SEASON_CHOICES["in_season"],
+            "n",
+            cli.FORMAT_CHOICES["xlsx"],
+            cli.FULL_STATS_OUTPUT_CHOICES["xlsx"],
+        ]
+    )
     inputs = iter(["19715", ""])
     schedule_calls = []
 
@@ -426,7 +454,14 @@ def test_main_uses_matchup_date_range_for_longer_than_week_xlsx(monkeypatch):
 
 
 def test_main_falls_back_to_weekly_schedule_when_matchup_range_not_detected(monkeypatch):
-    validate_results = iter([cli.SEASON_CHOICES["in_season"], "n", cli.FORMAT_CHOICES["xlsx"]])
+    validate_results = iter(
+        [
+            cli.SEASON_CHOICES["in_season"],
+            "n",
+            cli.FORMAT_CHOICES["xlsx"],
+            cli.FULL_STATS_OUTPUT_CHOICES["xlsx"],
+        ]
+    )
     inputs = iter(["19715", ""])
     schedule_calls = []
 
@@ -500,3 +535,143 @@ def test_prompt_schedule_start_date_override_reprompts_on_invalid_date(monkeypat
 
     assert result == datetime.date(2026, 10, 2)
     assert cli.SCHEDULE_START_DATE_INVALID_MESSAGE in capsys.readouterr().out
+
+
+def test_prompt_full_stats_output_retries_invalid_choice(monkeypatch):
+    choices = iter([None, cli.FULL_STATS_OUTPUT_CHOICES["google_sheets"]])
+    monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(choices))
+
+    assert cli.prompt_full_stats_output() == cli.FULL_STATS_OUTPUT_CHOICES["google_sheets"]
+
+
+def test_get_league_name_reads_page_title():
+    soup = bs4.BeautifulSoup(
+        "<html><head><title>FNH 26-27 | Fantasy Hockey | Yahoo! Sports</title></head></html>",
+        "lxml",
+    )
+
+    assert cli.get_league_name(soup) == "FNH 26-27"
+    assert cli.get_league_name(bs4.BeautifulSoup("<html></html>", "lxml")) == ""
+
+
+def test_build_google_league_config_uses_cli_values():
+    soup = bs4.BeautifulSoup(
+        "<html><head><title>FNH 26-27 | Fantasy Hockey</title></head></html>",
+        "lxml",
+    )
+
+    config = cli.build_google_league_config(
+        "11249",
+        soup,
+        cli.SEASON_MODES[cli.SEASON_CHOICES["just_started"]],
+        datetime.date(2026, 10, 2),
+    )
+
+    assert config == cli.league_sheet_config.LeagueConfig(
+        league_id="11249",
+        league_name="FNH 26-27",
+        season="just_started",
+        start_date_override="2026-10-02",
+    )
+
+
+def test_main_full_stats_google_sheets_resolves_spreadsheet_and_uses_google_sink(
+    monkeypatch, capsys
+):
+    validate_results = iter(
+        [
+            cli.SEASON_CHOICES["in_season"],
+            "n",
+            cli.FORMAT_CHOICES["xlsx"],
+            cli.FULL_STATS_OUTPUT_CHOICES["google_sheets"],
+        ]
+    )
+    inputs = iter(["11249", ""])
+    league_soup = bs4.BeautifulSoup(
+        "<html><head><title>FNH 26-27 | Fantasy Hockey</title></head></html>",
+        "lxml",
+    )
+    sheets_service = object()
+    drive_service = object()
+    resolver_calls = []
+    sink_calls = []
+    process_calls = []
+
+    class SinkSpy:
+        def __init__(self):
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    sink = SinkSpy()
+    monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
+    monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
+    monkeypatch.setattr(cli, "parse_full_page", lambda *args, **kwargs: (league_soup, None))
+    monkeypatch.setattr(
+        cli,
+        "get_links",
+        lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
+    )
+    monkeypatch.setattr(cli, "get_matchup_date_range", lambda *args, **kwargs: (None, None))
+    monkeypatch.setattr(
+        cli.schedule_scraper,
+        "get_schedule",
+        lambda **kwargs: ({"BOS": {"GL": 3}}, None),
+    )
+    monkeypatch.setattr(cli.google_api_auth, "sheet_service", lambda: sheets_service)
+    monkeypatch.setattr(cli.google_api_auth, "drive_service", lambda: drive_service)
+    monkeypatch.setattr(
+        cli.league_spreadsheets,
+        "resolve_league_spreadsheet",
+        lambda sheets, drive, config: resolver_calls.append((sheets, drive, config)) or "sheet-123",
+    )
+    monkeypatch.setattr(
+        cli.stats_sinks,
+        "GoogleSheetsStatsSink",
+        lambda sheets, spreadsheet_id, config: (
+            sink_calls.append((sheets, spreadsheet_id, config)) or sink
+        ),
+    )
+    monkeypatch.setattr(
+        cli.stats_sinks,
+        "XlsxStatsSink",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("xlsx sink should not be created")
+        ),
+    )
+    monkeypatch.setattr(
+        cli.xlsxwriter,
+        "Workbook",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("xlsx workbook should not be created")
+        ),
+    )
+    monkeypatch.setattr(
+        cli,
+        "build_roster_context",
+        lambda stats_sink, *args: ("context", stats_sink),
+    )
+    monkeypatch.setattr(
+        cli.roster_workflow,
+        "process_links",
+        lambda *args, **kwargs: process_calls.append((args, kwargs)) or None,
+    )
+    monkeypatch.setattr(
+        cli.core_output,
+        "open_file",
+        lambda filename: (_ for _ in ()).throw(AssertionError("local file should not be opened")),
+    )
+
+    cli.main()
+
+    assert len(resolver_calls) == 1
+    _, _, config = resolver_calls[0]
+    assert config.league_id == "11249"
+    assert config.league_name == "FNH 26-27"
+    assert config.season == "in_season"
+    assert config.start_date_override is None
+    assert sink_calls == [(sheets_service, "sheet-123", config)]
+    assert process_calls[0][0][0] == ("context", sink)
+    assert sink.closed is True
+    assert "https://docs.google.com/spreadsheets/d/sheet-123" in capsys.readouterr().out
