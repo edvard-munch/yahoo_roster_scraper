@@ -84,8 +84,8 @@ def test_discovery_uses_private_league_metadata_not_file_title():
     query = drive.list.call_args.kwargs["q"]
     assert "trashed = false" in query
     assert "mimeType = 'application/vnd.google-apps.spreadsheet'" in query
-    assert "key='roster_scraper' value='league_stats'" in query
-    assert "key='league_id' value='12922'" in query
+    assert "key='roster_scraper' and value='league_stats'" in query
+    assert "key='league_id' and value='12922'" in query
     assert "name =" not in query
 
 

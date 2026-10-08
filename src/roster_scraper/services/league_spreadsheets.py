@@ -34,8 +34,8 @@ def find_league_spreadsheet(drive_service, league_id):
     validate_league_id(league_id)
     query = (
         f"trashed = false and mimeType = '{SPREADSHEET_MIME_TYPE}' "
-        f"and appProperties has {{ key='{APPLICATION_PROPERTY}' value='{APPLICATION_VALUE}' }} "
-        f"and appProperties has {{ key='{LEAGUE_PROPERTY}' value='{league_id}' }}"
+        f"and appProperties has {{ key='{APPLICATION_PROPERTY}' and value='{APPLICATION_VALUE}' }} "
+        f"and appProperties has {{ key='{LEAGUE_PROPERTY}' and value='{league_id}' }}"
     )
     spreadsheet_ids = []
     page_token = None
