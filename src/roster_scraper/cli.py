@@ -9,6 +9,7 @@ import datetime
 import xlsxwriter
 from dataclasses import dataclass
 from functools import partial
+from typing import Any
 from urllib.parse import urljoin
 
 from roster_scraper.services import positions as positions_scraper
@@ -36,6 +37,22 @@ FULL_STATS_OUTPUT_CHOICES = {"xlsx": "1", "google_sheets": "2"}
 class SeasonMode:
     in_progress: bool
     just_started: bool
+
+
+@dataclass(frozen=True)
+class ScrapeConfig:
+    league_id: str
+    season_mode: SeasonMode
+    output_format: str
+    start_date_override: datetime.date | None = None
+
+
+@dataclass
+class PreparedLeague:
+    soup: bs4.BeautifulSoup
+    links: tuple[list[str], list[str]]
+    proxies: list
+    current_proxy: Any = None
 
 
 SEASON_CHOICES = {"preseason": "1", "just_started": "2", "in_season": "3"}
@@ -650,6 +667,20 @@ def get_matchup_date_range(matchup_link, proxies, proxy=None, today=None, league
     return date_range, proxy
 
 
+def build_matchups_context():
+    return matchups_service.MatchupsContext(
+        columns=COLUMNS,
+        wide_column_width=WIDE_COLUMN_WIDTH,
+        number_of_matchups_processed_message=NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE,
+        matchup_totals_parameter=MATCHUP_TOTALS_PARAMETER,
+        matchup_result_classes=MATCHUP_RESULT_CLASSES,
+        team_name_matchup_result_classes=TEAM_NAME_MATCHUP_RESULT_CLASSES,
+        proxies_scraper=proxies_scraper,
+        parse_full_page=parse_full_page,
+        scrape_from_page=scrape_from_page,
+    )
+
+
 def build_roster_context(stats_sink, matchups_context, season_mode):
     return roster_workflow.RosterWorkflowContext(
         format_choices=FORMAT_CHOICES,
@@ -672,82 +703,49 @@ def build_roster_context(stats_sink, matchups_context, season_mode):
     )
 
 
-def main():
-    season_mode = prompt_season_mode()
-
-    use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
-
-    while not use_proxies_choice:
-        use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
-
-    use_proxies = PROXY_CHOICES[use_proxies_choice]
-
-    if use_proxies:
-        proxies = proxies_scraper.scrape_proxies()
-    else:
-        proxies = []
-
-    league_id = input(INPUT_LEAGUE_ID_MESSAGE)
-
-    link = BASE_FANTASY_URL + league_id
-    main_page_soup, current_proxy = parse_full_page(link, proxies)
-    league_scrapable, current_proxy = resolve_league_links(
-        main_page_soup,
-        link,
+def prepare_league(league_id, season_mode, proxies, current_proxy=None):
+    league_link = BASE_FANTASY_URL + league_id
+    soup, current_proxy = parse_full_page(
+        league_link,
+        proxies,
+        current_proxy,
+    )
+    league_links, current_proxy = resolve_league_links(
+        soup,
+        league_link,
         league_id,
         season_mode,
         proxies,
         current_proxy,
     )
 
-    while not league_scrapable or not league_scrapable[1]:
-        league_id = input(INPUT_LEAGUE_ID_MESSAGE)
-        link = BASE_FANTASY_URL + league_id
-        main_page_soup, current_proxy = parse_full_page(link, proxies, current_proxy)
-        league_scrapable, current_proxy = resolve_league_links(
-            main_page_soup,
-            link,
-            league_id,
-            season_mode,
-            proxies,
-            current_proxy,
-        )
+    if not league_links or not league_links[1]:
+        return None
 
-    team_links = league_scrapable[1]
-
-    choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
-    while not choice:
-        choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
-
-    full_stats_output = None
-    if choice == FORMAT_CHOICES["xlsx"]:
-        full_stats_output = prompt_full_stats_output()
-
-    matchups_context = matchups_service.MatchupsContext(
-        columns=COLUMNS,
-        wide_column_width=WIDE_COLUMN_WIDTH,
-        number_of_matchups_processed_message=NUMBER_OF_MATCHUPS_PROCESSED_MESSAGE,
-        matchup_totals_parameter=MATCHUP_TOTALS_PARAMETER,
-        matchup_result_classes=MATCHUP_RESULT_CLASSES,
-        team_name_matchup_result_classes=TEAM_NAME_MATCHUP_RESULT_CLASSES,
-        proxies_scraper=proxies_scraper,
-        parse_full_page=parse_full_page,
-        scrape_from_page=scrape_from_page,
+    return PreparedLeague(
+        soup=soup,
+        links=league_links,
+        proxies=proxies,
+        current_proxy=current_proxy,
     )
 
-    if choice == FORMAT_CHOICES["xlsx"]:
-        matchup_links = league_scrapable[0]
 
-        start_date_override = prompt_schedule_start_date_override()
+def run_scrape(config, prepared_league, matchups_context, stats_sink=None):
+    matchup_links, team_links = prepared_league.links
+    current_proxy = prepared_league.current_proxy
+
+    if config.output_format == FORMAT_CHOICES["xlsx"]:
+        if stats_sink is None:
+            raise ValueError("Full stats output requires a stats sink")
 
         start_date = None
         end_date = None
         if matchup_links:
             matchup_date_range, current_proxy = get_matchup_date_range(
                 matchup_links[0],
-                proxies,
+                prepared_league.proxies,
                 current_proxy,
-                league_soup=main_page_soup,
+                league_soup=prepared_league.soup,
             )
             if matchup_date_range:
                 parsed_start_date, parsed_end_date = matchup_date_range
@@ -773,81 +771,128 @@ def main():
         schedule, _ = schedule_scraper.get_schedule(
             start_date=start_date,
             end_date=end_date,
-            start_date_override=start_date_override,
+            start_date_override=config.start_date_override,
         )
-
-        filename = None
-        if full_stats_output == FULL_STATS_OUTPUT_CHOICES["xlsx"]:
-            filename = core_output.get_filename()
-            workbook = xlsxwriter.Workbook(filename)
-            stats_sink = stats_sinks.XlsxStatsSink(
-                workbook,
-                core_output,
-                matchups_context,
-                MATCHUPS_WORKSHEET_NAME,
-            )
-        else:
-            sheets_service = google_api_auth.sheet_service()
-            drive_service = google_api_auth.drive_service()
-            config = build_google_league_config(
-                league_id,
-                main_page_soup,
-                season_mode,
-                start_date_override,
-            )
-            spreadsheet_id = league_spreadsheets.resolve_league_spreadsheet(
-                sheets_service,
-                drive_service,
-                config,
-            )
-            stats_sink = stats_sinks.GoogleSheetsStatsSink(
-                sheets_service,
-                spreadsheet_id,
-                config,
-            )
-            print(
-                GOOGLE_STATS_SPREADSHEET_MESSAGE.format(
-                    GOOGLE_STATS_SPREADSHEET_URL_TEMPLATE.format(spreadsheet_id)
-                )
-            )
-
-        roster_context = build_roster_context(stats_sink, matchups_context, season_mode)
-
+        roster_context = build_roster_context(
+            stats_sink,
+            matchups_context,
+            config.season_mode,
+        )
         current_proxy = roster_workflow.process_links(
             roster_context,
             team_links,
-            proxies,
-            choice,
-            build_avg_stats_page(season_mode.just_started),
+            prepared_league.proxies,
+            config.output_format,
+            build_avg_stats_page(config.season_mode.just_started),
             matchup_links,
             schedule,
             proxy=current_proxy,
         )
-
         stats_sink.close()
-        if filename:
-            core_output.open_file(filename)
+        return current_proxy
 
-    else:
-        playoffs_in_progress = main_page_soup.find(string=re.compile(PLAYOFFS_HEADER))
-        if playoffs_in_progress:
-            team_links, current_proxy = get_links_from_standings(league_id, proxies, current_proxy)
-
-        roster_context = build_roster_context(None, matchups_context, season_mode)
-
-        current_proxy = roster_workflow.process_links(
-            roster_context,
-            team_links,
-            proxies,
-            choice,
-            RESEARCH_STATS_PAGE,
-            proxy=current_proxy,
+    if prepared_league.soup.find(string=re.compile(PLAYOFFS_HEADER)):
+        team_links, current_proxy = get_links_from_standings(
+            config.league_id,
+            prepared_league.proxies,
+            current_proxy,
         )
 
-        if choice == FORMAT_CHOICES["txt"]:
-            core_output.open_file(TXT_FILENAME)
-        elif choice == FORMAT_CHOICES["json"]:
-            core_output.open_file(POSITIONS_FILENAME)
+    roster_context = build_roster_context(None, matchups_context, config.season_mode)
+    return roster_workflow.process_links(
+        roster_context,
+        team_links,
+        prepared_league.proxies,
+        config.output_format,
+        RESEARCH_STATS_PAGE,
+        proxy=current_proxy,
+    )
+
+
+def main():
+    season_mode = prompt_season_mode()
+
+    use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
+
+    while not use_proxies_choice:
+        use_proxies_choice = validate_input(PROXIES_CHOICE_MESSAGE, PROXY_CHOICES)
+
+    use_proxies = PROXY_CHOICES[use_proxies_choice]
+
+    if use_proxies:
+        proxies = proxies_scraper.scrape_proxies()
+    else:
+        proxies = []
+
+    league_id = input(INPUT_LEAGUE_ID_MESSAGE)
+    prepared_league = prepare_league(league_id, season_mode, proxies)
+
+    while not prepared_league:
+        league_id = input(INPUT_LEAGUE_ID_MESSAGE)
+        prepared_league = prepare_league(league_id, season_mode, proxies)
+
+    choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
+    while not choice:
+        choice = validate_input(FORMAT_CHOICE_MESSAGE, FORMAT_CHOICES.values())
+
+    full_stats_output = None
+    start_date_override = None
+    if choice == FORMAT_CHOICES["xlsx"]:
+        full_stats_output = prompt_full_stats_output()
+        start_date_override = prompt_schedule_start_date_override()
+
+    matchups_context = build_matchups_context()
+    stats_sink = None
+    filename = None
+
+    if full_stats_output == FULL_STATS_OUTPUT_CHOICES["xlsx"]:
+        filename = core_output.get_filename()
+        workbook = xlsxwriter.Workbook(filename)
+        stats_sink = stats_sinks.XlsxStatsSink(
+            workbook,
+            core_output,
+            matchups_context,
+            MATCHUPS_WORKSHEET_NAME,
+        )
+    elif full_stats_output == FULL_STATS_OUTPUT_CHOICES["google_sheets"]:
+        sheets_service = google_api_auth.sheet_service()
+        drive_service = google_api_auth.drive_service()
+        google_config = build_google_league_config(
+            league_id,
+            prepared_league.soup,
+            season_mode,
+            start_date_override,
+        )
+        spreadsheet_id = league_spreadsheets.resolve_league_spreadsheet(
+            sheets_service,
+            drive_service,
+            google_config,
+        )
+        stats_sink = stats_sinks.GoogleSheetsStatsSink(
+            sheets_service,
+            spreadsheet_id,
+            google_config,
+        )
+        print(
+            GOOGLE_STATS_SPREADSHEET_MESSAGE.format(
+                GOOGLE_STATS_SPREADSHEET_URL_TEMPLATE.format(spreadsheet_id)
+            )
+        )
+
+    config = ScrapeConfig(
+        league_id=league_id,
+        season_mode=season_mode,
+        output_format=choice,
+        start_date_override=start_date_override,
+    )
+    run_scrape(config, prepared_league, matchups_context, stats_sink)
+
+    if filename:
+        core_output.open_file(filename)
+    elif choice == FORMAT_CHOICES["txt"]:
+        core_output.open_file(TXT_FILENAME)
+    elif choice == FORMAT_CHOICES["json"]:
+        core_output.open_file(POSITIONS_FILENAME)
 
 
 if __name__ == "__main__":
