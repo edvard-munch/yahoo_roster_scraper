@@ -41,6 +41,9 @@ def test_config_round_trip_through_rows():
         season="preseason",
         start_date_override="2026-10-02",
         last_run="2026-10-02T17:25:00",
+        run_status="complete",
+        run_started_at="2026-10-02T17:20:00",
+        last_error=None,
     )
 
     rows = league_sheet_config.config_to_rows(config)
@@ -96,6 +99,9 @@ def test_write_league_config_writes_rows_to_config_sheet():
         season="preseason",
         start_date_override="2026-10-02",
         last_run="2026-10-02T17:25:00",
+        run_status="complete",
+        run_started_at="2026-10-02T17:20:00",
+        last_error=None,
     )
 
     league_sheet_config.write_league_config(service, "sheet-123", config)

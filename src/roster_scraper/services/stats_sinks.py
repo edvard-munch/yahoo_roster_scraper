@@ -100,12 +100,17 @@ class GoogleSheetsStatsSink:
             ).execute()
 
         self._apply_formatting(team_tabs)
+        previous_last_run = self.config.last_run
         self.config.last_run = league_sheet_config.build_last_run_timestamp()
-        league_sheet_config.write_league_config(
-            self.service,
-            self.spreadsheet_id,
-            self.config,
-        )
+        try:
+            league_sheet_config.write_league_config(
+                self.service,
+                self.spreadsheet_id,
+                self.config,
+            )
+        except Exception:
+            self.config.last_run = previous_last_run
+            raise
         self.closed = True
 
     def _apply_formatting(self, team_tabs):

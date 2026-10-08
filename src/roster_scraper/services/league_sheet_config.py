@@ -10,6 +10,13 @@ LEAGUE_NAME_KEY = "league_name"
 SEASON_KEY = "season"
 START_DATE_OVERRIDE_KEY = "start_date_override"
 LAST_RUN_KEY = "last_run"
+RUN_STATUS_KEY = "run_status"
+RUN_STARTED_AT_KEY = "run_started_at"
+LAST_ERROR_KEY = "last_error"
+
+RUN_STATUS_RUNNING = "running"
+RUN_STATUS_COMPLETE = "complete"
+RUN_STATUS_FAILED = "failed"
 
 
 @dataclass
@@ -19,6 +26,9 @@ class LeagueConfig:
     season: str = ""
     start_date_override: str | None = None
     last_run: str | None = None
+    run_status: str | None = None
+    run_started_at: str | None = None
+    last_error: str | None = None
     extras: dict[str, str] = field(default_factory=dict)
 
 
@@ -29,6 +39,9 @@ def config_to_rows(config):
         [SEASON_KEY, config.season],
         [START_DATE_OVERRIDE_KEY, config.start_date_override or ""],
         [LAST_RUN_KEY, config.last_run or ""],
+        [RUN_STATUS_KEY, config.run_status or ""],
+        [RUN_STARTED_AT_KEY, config.run_started_at or ""],
+        [LAST_ERROR_KEY, config.last_error or ""],
         *[[key, value] for key, value in config.extras.items()],
     ]
 
@@ -56,6 +69,12 @@ def config_from_rows(rows):
             config.start_date_override = value or None
         elif key == LAST_RUN_KEY:
             config.last_run = value or None
+        elif key == RUN_STATUS_KEY:
+            config.run_status = value or None
+        elif key == RUN_STARTED_AT_KEY:
+            config.run_started_at = value or None
+        elif key == LAST_ERROR_KEY:
+            config.last_error = value or None
         else:
             config.extras[key] = value
 

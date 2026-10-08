@@ -258,3 +258,38 @@ def test_google_sheets_sink_does_not_update_config_after_value_write_failure(mon
 
     assert config.last_run is None
     service.values.return_value.update.assert_not_called()
+
+
+def test_google_sheets_sink_restores_last_run_when_config_write_fails(monkeypatch):
+    service = MagicMock()
+    config = stats_sinks.league_sheet_config.LeagueConfig(
+        league_id="12922",
+        last_run="previous-run",
+    )
+    monkeypatch.setattr(
+        stats_sinks.google_sheet_tabs,
+        "sync_stats_tabs",
+        lambda service_arg, spreadsheet_id, team_names: [],
+    )
+    monkeypatch.setattr(
+        stats_sinks.google_sheet_tabs,
+        "get_sheet_properties",
+        lambda service_arg, spreadsheet_id: [{"sheetId": 1, "title": "MATCHUPS"}],
+    )
+    monkeypatch.setattr(
+        stats_sinks.league_sheet_config,
+        "build_last_run_timestamp",
+        lambda: "new-run",
+    )
+    monkeypatch.setattr(
+        stats_sinks.league_sheet_config,
+        "write_league_config",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("config write failed")),
+    )
+    sink = stats_sinks.GoogleSheetsStatsSink(service, "sheet-123", config)
+
+    with pytest.raises(RuntimeError, match="config write failed"):
+        sink.close()
+
+    assert config.last_run == "previous-run"
+    assert sink.closed is False
