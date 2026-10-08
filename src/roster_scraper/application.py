@@ -19,6 +19,13 @@ class SeasonMode:
     just_started: bool
 
 
+SEASON_MODES_BY_NAME = {
+    "preseason": SeasonMode(in_progress=False, just_started=False),
+    "just_started": SeasonMode(in_progress=True, just_started=True),
+    "in_season": SeasonMode(in_progress=True, just_started=False),
+}
+
+
 @dataclass(frozen=True)
 class ScrapeConfig:
     league_id: str

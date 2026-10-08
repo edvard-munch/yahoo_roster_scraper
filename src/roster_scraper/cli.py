@@ -7,12 +7,10 @@ import sys
 import subprocess
 import datetime
 import xlsxwriter
-from dataclasses import dataclass
 from functools import partial
 from urllib.parse import urljoin
 
 from roster_scraper import application
-from roster_scraper.application import SeasonMode
 from roster_scraper.services import positions as positions_scraper
 from roster_scraper.services import proxies as proxies_scraper
 from roster_scraper.services import schedule as schedule_scraper
@@ -34,17 +32,9 @@ FORMAT_CHOICES = {"xlsx": "1", "txt": "2", "json": "3", "google_sheets": "4"}
 FULL_STATS_OUTPUT_CHOICES = {"xlsx": "1", "google_sheets": "2"}
 
 
-@dataclass(frozen=True)
-class SeasonMode:
-    in_progress: bool
-    just_started: bool
-
-
 SEASON_CHOICES = {"preseason": "1", "just_started": "2", "in_season": "3"}
 SEASON_MODES = {
-    SEASON_CHOICES["preseason"]: SeasonMode(in_progress=False, just_started=False),
-    SEASON_CHOICES["just_started"]: SeasonMode(in_progress=True, just_started=True),
-    SEASON_CHOICES["in_season"]: SeasonMode(in_progress=True, just_started=False),
+    choice: application.SEASON_MODES_BY_NAME[name] for name, choice in SEASON_CHOICES.items()
 }
 SEASON_MODE_NAMES = {SEASON_MODES[choice]: name for name, choice in SEASON_CHOICES.items()}
 
