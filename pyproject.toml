@@ -48,6 +48,7 @@ dependencies = [
 
 [project.scripts]
 yahoo-roster-scraper = "roster_scraper.cli:main"
+yahoo-roster-scraper-actions = "roster_scraper.actions:main"
 
 [dependency-groups]
 dev = [

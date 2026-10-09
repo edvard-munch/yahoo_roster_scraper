@@ -149,3 +149,36 @@ Install the container-bound menu/sidebar using
 [the Apps Script instructions](google_apps_script/README.md). It edits the bound
 spreadsheet's `_config` and calls the Cloud Run endpoint with a bearer secret from
 Script Properties. The interactive Python CLI remains available and unchanged.
+
+## Non-interactive job / GitHub Actions command
+
+The job command refreshes an **existing** spreadsheet using ADC and its `_config`
+settings. It does not use the Cloud Run URL or bearer secret, create spreadsheets,
+start browser OAuth, or ask questions. The interactive CLI and Cloud Run endpoint
+remain unchanged.
+
+After `uv sync`, run:
+
+```bash
+uv run yahoo-roster-scraper-actions --spreadsheet-id YOUR_SPREADSHEET_ID
+# Equivalent module entrypoint:
+uv run python -m roster_scraper.actions --spreadsheet-id YOUR_SPREADSHEET_ID
+```
+
+Use only the spreadsheet ID, not its full URL. Configure ADC before execution:
+locally as described above, or in GitHub Actions through Google Workload Identity
+Federation (preferred) or a service-account credential supplied securely by the
+workflow. Share the target spreadsheet with that Google identity as **Editor**.
+No credentials belong in workflow inputs, command arguments, source code or
+uploaded artifacts. The Google Sheets API must be enabled.
+
+Exit codes: `0` successful completion, `1` authentication/config/scraping failure,
+`2` invalid/missing command arguments. The existing sheet runner records lifecycle
+status and errors in `_config`; a failed command must not be retried automatically
+without checking whether a prior run is still active. The command emits concise
+failure messages rather than raw Google errors or credential-bearing tracebacks.
+
+**Running this command updates real stats and synchronizes team tabs.** `--help`
+is safe without credentials and does not call Google/Yahoo. The Actions workflow,
+per-spreadsheet concurrency policy, and Apps Script GitHub dispatch are subsequent
+steps; this commit adds only the command they will invoke.
