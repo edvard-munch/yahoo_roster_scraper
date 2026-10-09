@@ -2,7 +2,7 @@ import datetime
 
 import bs4
 
-from roster_scraper import cli
+from roster_scraper.services import yahoo_scraper as cli
 
 
 def test_parse_matchup_date_range_text_same_month_without_year_uses_default_year():

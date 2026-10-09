@@ -2,7 +2,8 @@ from types import SimpleNamespace
 
 import bs4
 
-from roster_scraper import cli
+from roster_scraper.services import yahoo_scraper as cli
+from roster_scraper import cli as terminal_cli
 
 
 def test_get_team_name_prefers_name_span(monkeypatch):
@@ -170,7 +171,7 @@ def test_merge_team_links_dedupes_unnamed_links_by_team_id():
 
 
 def test_resolve_league_links_merges_league_and_standings_in_preseason(monkeypatch, capsys):
-    season_mode = cli.SEASON_MODES[cli.SEASON_CHOICES["preseason"]]
+    season_mode = terminal_cli.SEASON_MODES[terminal_cli.SEASON_CHOICES["preseason"]]
     league_link = "https://hockey.fantasysports.yahoo.com/hockey/12922"
     monkeypatch.setattr(cli, "get_links", lambda *args, **kwargs: ([], []))
     monkeypatch.setattr(
@@ -221,7 +222,7 @@ def test_resolve_league_links_merges_league_and_standings_in_preseason(monkeypat
 
 
 def test_resolve_league_links_skips_standings_team_with_empty_roster(monkeypatch, capsys):
-    season_mode = cli.SEASON_MODES[cli.SEASON_CHOICES["preseason"]]
+    season_mode = terminal_cli.SEASON_MODES[terminal_cli.SEASON_CHOICES["preseason"]]
     league_link = "https://hockey.fantasysports.yahoo.com/hockey/12922"
     monkeypatch.setattr(cli, "get_links", lambda *args, **kwargs: ([], []))
     monkeypatch.setattr(
@@ -257,7 +258,7 @@ def test_resolve_league_links_skips_standings_team_with_empty_roster(monkeypatch
 
 
 def test_resolve_league_links_keeps_in_season_error(monkeypatch, capsys):
-    season_mode = cli.SEASON_MODES[cli.SEASON_CHOICES["in_season"]]
+    season_mode = terminal_cli.SEASON_MODES[terminal_cli.SEASON_CHOICES["in_season"]]
     monkeypatch.setattr(cli, "get_links", lambda *args, **kwargs: ([], []))
 
     result, proxy = cli.resolve_league_links(
@@ -303,9 +304,9 @@ def test_get_links_from_standings_returns_team_hrefs(monkeypatch):
 
 
 def test_season_modes_map_to_expected_flags():
-    preseason = cli.SEASON_MODES[cli.SEASON_CHOICES["preseason"]]
-    just_started = cli.SEASON_MODES[cli.SEASON_CHOICES["just_started"]]
-    in_season = cli.SEASON_MODES[cli.SEASON_CHOICES["in_season"]]
+    preseason = terminal_cli.SEASON_MODES[terminal_cli.SEASON_CHOICES["preseason"]]
+    just_started = terminal_cli.SEASON_MODES[terminal_cli.SEASON_CHOICES["just_started"]]
+    in_season = terminal_cli.SEASON_MODES[terminal_cli.SEASON_CHOICES["in_season"]]
 
     assert preseason.in_progress is False
     assert preseason.just_started is False
@@ -317,14 +318,14 @@ def test_season_modes_map_to_expected_flags():
 
 def test_prompt_season_mode_returns_selected_mode(monkeypatch):
     monkeypatch.setattr(
-        cli,
+        terminal_cli,
         "validate_input",
-        lambda *args, **kwargs: cli.SEASON_CHOICES["preseason"],
+        lambda *args, **kwargs: terminal_cli.SEASON_CHOICES["preseason"],
     )
 
-    season_mode = cli.prompt_season_mode()
+    season_mode = terminal_cli.prompt_season_mode()
 
-    assert season_mode == cli.SEASON_MODES[cli.SEASON_CHOICES["preseason"]]
+    assert season_mode == terminal_cli.SEASON_MODES[terminal_cli.SEASON_CHOICES["preseason"]]
 
 
 def test_build_avg_stats_page_adds_last_season_when_just_started():

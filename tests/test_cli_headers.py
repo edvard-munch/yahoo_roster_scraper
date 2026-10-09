@@ -1,7 +1,7 @@
 import bs4
 import pytest
 
-from roster_scraper import cli
+from roster_scraper.services import yahoo_scraper as cli
 
 
 def test_get_headers_uses_action_fallback_row():

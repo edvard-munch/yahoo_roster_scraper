@@ -88,20 +88,58 @@ def test_build_scrape_dependencies_maps_runtime_values():
 
 
 def test_default_sheet_runtime_builds_actual_contexts_without_interaction(monkeypatch):
-    from roster_scraper import application, cli
-    from roster_scraper.services import google_api_auth, matchups
+    from roster_scraper import application
+    from roster_scraper.services import google_api_auth, matchups, yahoo_scraper
 
     def forbidden(*args, **kwargs):
         raise AssertionError("Runtime construction must not prompt, scrape, or start OAuth")
 
     monkeypatch.setattr("builtins.input", forbidden)
     monkeypatch.setattr(google_api_auth, "get_credentials", forbidden)
-    monkeypatch.setattr(cli.proxies_scraper, "get_response", forbidden)
+    monkeypatch.setattr(yahoo_scraper.proxies_scraper, "get_response", forbidden)
 
     dependencies, context = runtime.build_default_sheet_runtime()
 
     assert isinstance(dependencies, application.ScrapeDependencies)
     assert isinstance(context, matchups.MatchupsContext)
-    assert dependencies.parse_full_page is cli.parse_full_page
-    assert dependencies.resolve_league_links is cli.resolve_league_links
+    assert dependencies.parse_full_page is yahoo_scraper.parse_full_page
+    assert dependencies.resolve_league_links is yahoo_scraper.resolve_league_links
     assert context.parse_full_page is dependencies.parse_full_page
+
+
+def test_default_runtime_and_http_app_do_not_import_cli():
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+
+    source = """
+import importlib.abc
+import sys
+
+class NoCli(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "roster_scraper.cli":
+            raise AssertionError("Server runtime must not import CLI")
+
+sys.meta_path.insert(0, NoCli())
+from roster_scraper import runtime, web
+from roster_scraper.services import yahoo_scraper
+
+dependencies, context = runtime.build_default_sheet_runtime()
+assert dependencies.parse_full_page is yahoo_scraper.parse_full_page
+assert dependencies.resolve_league_links is yahoo_scraper.resolve_league_links
+assert context.parse_full_page is dependencies.parse_full_page
+assert "roster_scraper.cli" not in sys.modules
+assert web.app is not None
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", source],
+        cwd=Path(__file__).resolve().parents[1],
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr

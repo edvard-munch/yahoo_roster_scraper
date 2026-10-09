@@ -1,6 +1,6 @@
 import bs4
 
-from roster_scraper import cli
+from roster_scraper.services import yahoo_scraper as cli
 
 
 def _build_soup(rows_html):

@@ -129,8 +129,8 @@ server secret or unavailable Google credentials, `500` unexpected scraper failur
 Upstream error bodies and bearer tokens are not returned or logged by the HTTP
 handler. Run details remain in `_config` and existing scraper logs.
 
-The HTTP layer creates Google clients per request. Its default runtime adapter
-reuses existing Yahoo parsing helpers without executing CLI prompts. Keep the
+The HTTP layer creates Google clients per request. Its default runtime uses the
+neutral Yahoo scraper service and does not import the CLI. Keep the
 existing `uv run yahoo-roster-scraper` command for interactive local runs.
 Apps Script integration and distributed run locking are separate steps. Avoid overlapping runs against the same spreadsheet in this
 synchronous version; use a single worker/concurrency of one when deploying it.

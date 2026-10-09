@@ -1,7 +1,8 @@
 import bs4
 import datetime
 
-from roster_scraper import cli
+from roster_scraper import cli, runtime
+from roster_scraper.services import yahoo_scraper
 
 
 def test_main_retries_invalid_proxy_and_league_then_runs_txt(monkeypatch):
@@ -22,14 +23,14 @@ def test_main_retries_invalid_proxy_and_league_then_runs_txt(monkeypatch):
     monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "parse_full_page",
         lambda *args, **kwargs: (bs4.BeautifulSoup("<html></html>", "lxml"), None),
     )
-    monkeypatch.setattr(cli, "get_links", lambda *args, **kwargs: next(links_results))
-    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(yahoo_scraper, "get_links", lambda *args, **kwargs: next(links_results))
+    monkeypatch.setattr(runtime, "build_roster_context", lambda *args, **kwargs: "context")
     monkeypatch.setattr(
-        cli.roster_workflow,
+        runtime.roster_workflow,
         "process_links",
         lambda *args, **kwargs: process_calls.append((args, kwargs)),
     )
@@ -45,7 +46,7 @@ def test_main_retries_invalid_proxy_and_league_then_runs_txt(monkeypatch):
     assert args[1] == ["/team/1"]
     assert args[2] == []
     assert args[3] == cli.FORMAT_CHOICES["txt"]
-    assert args[4] == cli.RESEARCH_STATS_PAGE
+    assert args[4] == yahoo_scraper.RESEARCH_STATS_PAGE
     assert opened_files == [cli.TXT_FILENAME]
 
 
@@ -55,24 +56,28 @@ def test_main_uses_standings_links_for_json_when_playoffs_header_present(monkeyp
     process_calls = []
     opened_files = []
 
-    playoffs_soup = bs4.BeautifulSoup(f"<html><body>{cli.PLAYOFFS_HEADER}</body></html>", "lxml")
+    playoffs_soup = bs4.BeautifulSoup(
+        f"<html><body>{yahoo_scraper.PLAYOFFS_HEADER}</body></html>", "lxml"
+    )
 
     monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
-    monkeypatch.setattr(cli, "parse_full_page", lambda *args, **kwargs: (playoffs_soup, None))
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper, "parse_full_page", lambda *args, **kwargs: (playoffs_soup, None)
+    )
+    monkeypatch.setattr(
+        yahoo_scraper,
         "get_links",
         lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
     )
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "get_links_from_standings",
         lambda league_id, proxies, proxy=None: (["/standing/1", "/standing/2"], proxy),
     )
-    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(runtime, "build_roster_context", lambda *args, **kwargs: "context")
     monkeypatch.setattr(
-        cli.roster_workflow,
+        runtime.roster_workflow,
         "process_links",
         lambda *args, **kwargs: process_calls.append((args, kwargs)),
     )
@@ -98,29 +103,29 @@ def test_main_uses_standings_for_preseason_without_matchups(monkeypatch, capsys)
     monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "parse_full_page",
         lambda *args, **kwargs: (bs4.BeautifulSoup("<html></html>", "lxml"), None),
     )
-    monkeypatch.setattr(cli, "get_links", lambda *args, **kwargs: ([], []))
+    monkeypatch.setattr(yahoo_scraper, "get_links", lambda *args, **kwargs: ([], []))
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "get_team_links_from_league",
         lambda *args, **kwargs: [("/league/1", "League Team")],
     )
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "get_links_from_standings",
         lambda league_id, proxies, proxy=None: (["/standing/1", "/standing/2"], proxy),
     )
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "inspect_team_link",
         lambda link, proxies, proxy=None: (f"Team {link}", proxy),
     )
-    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(runtime, "build_roster_context", lambda *args, **kwargs: "context")
     monkeypatch.setattr(
-        cli.roster_workflow,
+        runtime.roster_workflow,
         "process_links",
         lambda *args, **kwargs: process_calls.append((args, kwargs)),
     )
@@ -134,7 +139,7 @@ def test_main_uses_standings_for_preseason_without_matchups(monkeypatch, capsys)
     args, _ = process_calls[0]
     assert args[1] == ["/league/1", "/standing/1", "/standing/2"]
     assert args[3] == cli.FORMAT_CHOICES["txt"]
-    assert cli.NO_MATCHUPS_FOUND_MESSAGE in capsys.readouterr().out
+    assert yahoo_scraper.NO_MATCHUPS_FOUND_MESSAGE in capsys.readouterr().out
     assert opened_files == [cli.TXT_FILENAME]
 
 
@@ -149,18 +154,18 @@ def test_main_runs_google_mode_without_opening_local_file(monkeypatch):
     monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "parse_full_page",
         lambda *args, **kwargs: (bs4.BeautifulSoup("<html></html>", "lxml"), None),
     )
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "get_links",
         lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
     )
-    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(runtime, "build_roster_context", lambda *args, **kwargs: "context")
     monkeypatch.setattr(
-        cli.roster_workflow,
+        runtime.roster_workflow,
         "process_links",
         lambda *args, **kwargs: process_calls.append((args, kwargs)),
     )
@@ -202,17 +207,17 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
     monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "parse_full_page",
         lambda *args, **kwargs: (bs4.BeautifulSoup("<html></html>", "lxml"), None),
     )
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "get_links",
         lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
     )
     monkeypatch.setattr(
-        cli.schedule_scraper,
+        runtime.schedule_scraper,
         "get_schedule",
         lambda start_date=None, end_date=None, start_date_override=None: (
             {"BOS": {"GL": 3}},
@@ -220,9 +225,9 @@ def test_main_xlsx_uses_season_start_avg_stats_when_enabled(monkeypatch):
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
-    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(runtime, "build_roster_context", lambda *args, **kwargs: "context")
     monkeypatch.setattr(
-        cli.roster_workflow,
+        runtime.roster_workflow,
         "process_links",
         lambda *args, **kwargs: process_calls.append((args, kwargs)),
     )
@@ -270,7 +275,7 @@ def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(cli.proxies_scraper, "scrape_proxies", lambda: [stable_proxy])
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "parse_full_page",
         lambda link, proxies, proxy=None, params=None: (
             parse_calls.append({"link": link, "proxy": proxy})
@@ -279,12 +284,12 @@ def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "get_links",
         lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
     )
     monkeypatch.setattr(
-        cli.schedule_scraper,
+        runtime.schedule_scraper,
         "get_schedule",
         lambda start_date=None, end_date=None, start_date_override=None: (
             schedule_calls.append(
@@ -298,9 +303,9 @@ def test_main_reuses_working_proxy_across_xlsx_steps(monkeypatch):
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
-    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(runtime, "build_roster_context", lambda *args, **kwargs: "context")
     monkeypatch.setattr(
-        cli.roster_workflow,
+        runtime.roster_workflow,
         "process_links",
         lambda *args, **kwargs: process_calls.append(kwargs) or kwargs["proxy"],
     )
@@ -342,17 +347,17 @@ def test_main_passes_schedule_start_date_override_to_schedule_scraper(monkeypatc
     monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "parse_full_page",
         lambda *args, **kwargs: (bs4.BeautifulSoup("<html></html>", "lxml"), None),
     )
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "get_links",
         lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
     )
     monkeypatch.setattr(
-        cli.schedule_scraper,
+        runtime.schedule_scraper,
         "get_schedule",
         lambda start_date=None, end_date=None, start_date_override=None: (
             schedule_calls.append(
@@ -366,8 +371,8 @@ def test_main_passes_schedule_start_date_override_to_schedule_scraper(monkeypatc
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
-    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
-    monkeypatch.setattr(cli.roster_workflow, "process_links", lambda *args, **kwargs: None)
+    monkeypatch.setattr(runtime, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(runtime.roster_workflow, "process_links", lambda *args, **kwargs: None)
     monkeypatch.setattr(cli.core_output, "get_filename", lambda: "reports/test.xlsx")
     monkeypatch.setattr(cli.core_output, "open_file", lambda filename: None)
 
@@ -412,22 +417,22 @@ def test_main_uses_matchup_date_range_for_longer_than_week_xlsx(monkeypatch):
 
     monkeypatch.setattr(cli.datetime, "date", FakeDate)
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "parse_full_page",
         lambda *args, **kwargs: (bs4.BeautifulSoup("<html></html>", "lxml"), None),
     )
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "get_links",
         lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
     )
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "get_matchup_date_range",
         lambda *args, **kwargs: ((datetime.date(2026, 3, 25), datetime.date(2026, 4, 4)), None),
     )
     monkeypatch.setattr(
-        cli.schedule_scraper,
+        runtime.schedule_scraper,
         "get_schedule",
         lambda start_date=None, end_date=None, start_date_override=None: (
             schedule_calls.append(
@@ -441,8 +446,8 @@ def test_main_uses_matchup_date_range_for_longer_than_week_xlsx(monkeypatch):
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
-    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
-    monkeypatch.setattr(cli.roster_workflow, "process_links", lambda *args, **kwargs: None)
+    monkeypatch.setattr(runtime, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(runtime.roster_workflow, "process_links", lambda *args, **kwargs: None)
     monkeypatch.setattr(cli.core_output, "get_filename", lambda: "reports/test.xlsx")
     monkeypatch.setattr(cli.core_output, "open_file", lambda filename: None)
 
@@ -478,18 +483,20 @@ def test_main_falls_back_to_weekly_schedule_when_matchup_range_not_detected(monk
     monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "parse_full_page",
         lambda *args, **kwargs: (bs4.BeautifulSoup("<html></html>", "lxml"), None),
     )
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper,
         "get_links",
         lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
     )
-    monkeypatch.setattr(cli, "get_matchup_date_range", lambda *args, **kwargs: (None, None))
     monkeypatch.setattr(
-        cli.schedule_scraper,
+        yahoo_scraper, "get_matchup_date_range", lambda *args, **kwargs: (None, None)
+    )
+    monkeypatch.setattr(
+        runtime.schedule_scraper,
         "get_schedule",
         lambda start_date=None, end_date=None, start_date_override=None: (
             schedule_calls.append(
@@ -503,8 +510,8 @@ def test_main_falls_back_to_weekly_schedule_when_matchup_range_not_detected(monk
         ),
     )
     monkeypatch.setattr(cli.xlsxwriter, "Workbook", workbook)
-    monkeypatch.setattr(cli, "build_roster_context", lambda *args, **kwargs: "context")
-    monkeypatch.setattr(cli.roster_workflow, "process_links", lambda *args, **kwargs: None)
+    monkeypatch.setattr(runtime, "build_roster_context", lambda *args, **kwargs: "context")
+    monkeypatch.setattr(runtime.roster_workflow, "process_links", lambda *args, **kwargs: None)
     monkeypatch.setattr(cli.core_output, "get_filename", lambda: "reports/test.xlsx")
     monkeypatch.setattr(cli.core_output, "open_file", lambda filename: None)
 
@@ -607,15 +614,19 @@ def test_main_full_stats_google_sheets_resolves_spreadsheet_and_uses_google_sink
     sink = SinkSpy()
     monkeypatch.setattr(cli, "validate_input", lambda *args, **kwargs: next(validate_results))
     monkeypatch.setattr("builtins.input", lambda *args, **kwargs: next(inputs))
-    monkeypatch.setattr(cli, "parse_full_page", lambda *args, **kwargs: (league_soup, None))
     monkeypatch.setattr(
-        cli,
+        yahoo_scraper, "parse_full_page", lambda *args, **kwargs: (league_soup, None)
+    )
+    monkeypatch.setattr(
+        yahoo_scraper,
         "get_links",
         lambda *args, **kwargs: (["https://example.com/matchup/1"], ["/team/1"]),
     )
-    monkeypatch.setattr(cli, "get_matchup_date_range", lambda *args, **kwargs: (None, None))
     monkeypatch.setattr(
-        cli.schedule_scraper,
+        yahoo_scraper, "get_matchup_date_range", lambda *args, **kwargs: (None, None)
+    )
+    monkeypatch.setattr(
+        runtime.schedule_scraper,
         "get_schedule",
         lambda **kwargs: ({"BOS": {"GL": 3}}, None),
     )
@@ -648,12 +659,12 @@ def test_main_full_stats_google_sheets_resolves_spreadsheet_and_uses_google_sink
         ),
     )
     monkeypatch.setattr(
-        cli,
+        runtime,
         "build_roster_context",
         lambda stats_sink, *args: ("context", stats_sink),
     )
     monkeypatch.setattr(
-        cli.roster_workflow,
+        runtime.roster_workflow,
         "process_links",
         lambda *args, **kwargs: process_calls.append((args, kwargs)) or None,
     )
