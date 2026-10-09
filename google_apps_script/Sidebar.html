@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font: 14px Arial, sans-serif; padding: 12px; }
+    label { display: block; margin: 14px 0 5px; }
+    input, select { width: 100%; box-sizing: border-box; padding: 7px; }
+    button { margin: 12px 4px 0 0; padding: 8px; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+    #message { margin-top: 12px; }
+    .error { color: #a00000; }
+  </style>
+</head>
+<body>
+  <h3>Yahoo Roster Scraper</h3>
+  <form id="settings">
+    <label for="league">League ID</label>
+    <input id="league" name="league_id" inputmode="numeric" pattern="[0-9]+" required>
+    <label for="season">Season mode</label>
+    <select id="season" name="season" required>
+      <option value="">Choose a season mode</option>
+      <option value="preseason">Preseason / offseason</option>
+      <option value="just_started">Season just started</option>
+      <option value="in_season">In-season</option>
+    </select>
+    <label for="start">Schedule start date (optional)</label>
+    <input id="start" name="start_date_override" type="date">
+    <p>Leave blank for today. Select tomorrow to exclude today's games.</p>
+    <button id="save" type="button">Save settings</button>
+    <button id="run" type="submit">Run scraper</button>
+  </form>
+  <button id="refresh" type="button">Refresh status</button>
+  <div id="message" role="status" aria-live="polite"></div>
+  <pre id="status"></pre>
+  <p>Runs may take several minutes. If a request times out, check status before
+     trying again. Do not close the sheet expecting the backend run to stop.</p>
+  <script>
+    let busy = false;
+    let backendRunning = false;
+    const form = document.getElementById('settings');
+
+    function updateButtons() {
+      document.getElementById('run').disabled = busy || backendRunning;
+      document.getElementById('save').disabled = busy || backendRunning;
+      for (const control of form.querySelectorAll('input, select')) control.disabled = busy;
+    }
+    function message(text, failed) {
+      const box = document.getElementById('message');
+      box.textContent = text;
+      box.className = failed ? 'error' : '';
+    }
+    function renderState(state, populate) {
+      if (populate) {
+        document.getElementById('league').value = state.league_id || '';
+        document.getElementById('season').value = state.season || '';
+        document.getElementById('start').value = state.start_date_override || '';
+      }
+      backendRunning = state.run_status === 'running';
+      document.getElementById('status').textContent =
+        'League: ' + (state.league_name || state.league_id || '-')
+        + '\nStatus: ' + (state.run_status || 'not run')
+        + '\nStarted: ' + (state.run_started_at || '-')
+        + '\nLast success: ' + (state.last_run || '-')
+        + '\nLast error: ' + (state.last_error || '-');
+      updateButtons();
+    }
+    function fail(error) {
+      busy = false;
+      updateButtons();
+      message(error.message || 'Action failed. Check run status.', true);
+    }
+    function values() {
+      return {
+        league_id: document.getElementById('league').value,
+        season: document.getElementById('season').value,
+        start_date_override: document.getElementById('start').value,
+      };
+    }
+    function refreshStatus(populate) {
+      google.script.run.withSuccessHandler(state => renderState(state, populate))
+        .withFailureHandler(error => message(error.message || 'Could not read status.', true))
+        .getSidebarState();
+    }
+    document.getElementById('save').addEventListener('click', () => {
+      if (!form.reportValidity()) return;
+      const settings = values();
+      busy = true; updateButtons();
+      google.script.run.withSuccessHandler(state => {
+        busy = false; renderState(state, false); message('Settings saved.', false);
+      }).withFailureHandler(fail).saveSettingsFromSidebar(settings);
+    });
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (!form.reportValidity() || busy || backendRunning) return;
+      const settings = values();
+      busy = true; updateButtons(); message('Running scraper…', false);
+      google.script.run.withSuccessHandler(result => {
+        busy = false; renderState(result.state, false); message(result.message, !result.ok);
+      }).withFailureHandler(fail).runFromSidebar(settings);
+    });
+    document.getElementById('refresh').addEventListener('click', () => refreshStatus(false));
+    busy = true; updateButtons();
+    google.script.run.withSuccessHandler(state => {
+      busy = false; renderState(state, true);
+    }).withFailureHandler(fail).getSidebarState();
+  </script>
+</body>
+</html>

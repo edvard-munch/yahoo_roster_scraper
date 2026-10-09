@@ -142,3 +142,10 @@ The container runs as a non-root user and requires `SCRAPER_API_SECRET` at start
 its launcher uses Cloud Run's `PORT` and one Uvicorn worker. Local CLI usage is
 unchanged. See [deployment instructions](deployment/README.md) for Secret Manager,
 service-account spreadsheet access, the Cloud Run template, and smoke tests.
+
+## Run from a Google Sheet
+
+Install the container-bound menu/sidebar using
+[the Apps Script instructions](google_apps_script/README.md). It edits the bound
+spreadsheet's `_config` and calls the Cloud Run endpoint with a bearer secret from
+Script Properties. The interactive Python CLI remains available and unchanged.
