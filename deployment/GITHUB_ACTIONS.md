@@ -2,8 +2,9 @@
 
 This is an alternative to Cloud Run, not a replacement. It uses the same Python
 runner and spreadsheet `_config`. Your PC does not need to stay running.
-The workflow is manually/API triggered; Apps Script GitHub dispatch is a separate
-next step. Keep using the current Apps Script/Cloud Run path until that is added.
+The workflow is manually/API triggered and can also be dispatched through the
+bound Apps Script sidebar; see `google_apps_script/README.md` for provider selection
+and repository-limited token setup. Cloud Run remains available independently.
 
 The public `edvard-munch/yahoo_roster_scraper` repository can use standard
 `ubuntu-latest` runners for free. No larger runner is requested. A private
@@ -84,9 +85,9 @@ Use the numeric **project number**, not project ID, in the provider path. A revi
 requirement pauses each run until approved; choose that policy knowing a future
 Apps Script button will also have to wait for approval.
 
-No `BACKEND_SECRET` or Google JSON key is needed by this workflow. The later Apps
-Script dispatch integration will need a repository-limited GitHub credential;
-that is separate from the Google WIF configuration here.
+No `BACKEND_SECRET` or Google JSON key is needed by this workflow. The bound Apps
+Script dispatch uses a repository-limited GitHub credential; its setup is separate
+from the Google WIF configuration here. See `google_apps_script/README.md`.
 
 ## 3. Publish and run
 

@@ -33,8 +33,10 @@
   <button id="refresh" type="button">Refresh status</button>
   <div id="message" role="status" aria-live="polite"></div>
   <pre id="status"></pre>
-  <p>Runs may take several minutes. If a request times out, check status before
-     trying again. Do not close the sheet expecting the backend run to stop.</p>
+  <a id="actions" hidden target="_blank" rel="noopener noreferrer">Open GitHub Actions</a>
+  <p>Cloud Run waits for completion; GitHub Actions returns after submission.
+     Wait for the job to start, then refresh status. Check Actions/logs before
+     retrying an unknown outcome. Closing this sheet does not stop a run.</p>
   <script>
     let busy = false;
     let backendRunning = false;
@@ -56,19 +58,27 @@
         document.getElementById('season').value = state.season || '';
         document.getElementById('start').value = state.start_date_override || '';
       }
-      backendRunning = state.run_status === 'running';
+      backendRunning = state.run_status === 'running' || state.github_dispatch_pending;
       document.getElementById('status').textContent =
         'League: ' + (state.league_name || state.league_id || '-')
+        + (state.github_dispatch_pending ? '\nGitHub submission pending (not completed).' : '')
         + '\nStatus: ' + (state.run_status || 'not run')
         + '\nStarted: ' + (state.run_started_at || '-')
         + '\nLast success: ' + (state.last_run || '-')
         + '\nLast error: ' + (state.last_error || '-');
+      showActionsLink(state.github_actions_url);
       updateButtons();
+    }
+    function showActionsLink(url) {
+      const link = document.getElementById('actions');
+      link.hidden = !url || !url.startsWith('https://github.com/');
+      if (!link.hidden) link.href = url;
     }
     function fail(error) {
       busy = false;
       updateButtons();
       message(error.message || 'Action failed. Check run status.', true);
+      refreshStatus(false);
     }
     function values() {
       return {
@@ -97,6 +107,7 @@
       busy = true; updateButtons(); message('Running scraper…', false);
       google.script.run.withSuccessHandler(result => {
         busy = false; renderState(result.state, false); message(result.message, !result.ok);
+        if (result.actionsUrl) showActionsLink(result.actionsUrl);
       }).withFailureHandler(fail).runFromSidebar(settings);
     });
     document.getElementById('refresh').addEventListener('click', () => refreshStatus(false));

@@ -51,8 +51,8 @@ tab plus a hidden `_config` tab, then reuses the tagged spreadsheet on later run
 Drive discovery uses private app metadata, not a local registry or the file title.
 Use the same Google account and OAuth client across machines for discovery.
 Ambiguous matches and missing/mismatched configuration are errors, not reasons
-for creating a replacement spreadsheet. The CLI stats-output integration is
-planned separately; these helpers do not yet add a new interactive output option.
+for creating a replacement spreadsheet. Select full stats → Google Sheets in the
+interactive CLI to create or reuse one.
 
 ## Cloud Google Sheets authentication
 
@@ -147,8 +147,8 @@ service-account spreadsheet access, the Cloud Run template, and smoke tests.
 
 Install the container-bound menu/sidebar using
 [the Apps Script instructions](google_apps_script/README.md). It edits the bound
-spreadsheet's `_config` and calls the Cloud Run endpoint with a bearer secret from
-Script Properties. The interactive Python CLI remains available and unchanged.
+spreadsheet's `_config` and calls Cloud Run or dispatches GitHub Actions using
+credentials from Script Properties. The interactive Python CLI remains available and unchanged.
 
 ## Non-interactive job / GitHub Actions command
 
@@ -180,8 +180,8 @@ failure messages rather than raw Google errors or credential-bearing tracebacks.
 
 **Running this command updates real stats and synchronizes team tabs.** `--help`
 is safe without credentials and does not call Google/Yahoo. The Actions workflow,
-per-spreadsheet concurrency policy, and Apps Script GitHub dispatch are subsequent
-steps; this commit adds only the command they will invoke.
+per-spreadsheet concurrency policy, and Apps Script GitHub dispatch are described
+in the linked hosting guides below.
 
 ## GitHub Actions hosting option
 
@@ -189,4 +189,5 @@ steps; this commit adds only the command they will invoke.
 triggered spreadsheet refresh workflow, Google keyless identity federation,
 environment variables, permissions, and per-spreadsheet concurrency handling.
 It uses the non-interactive Actions command; Cloud Run remains an independent
-option. Apps Script GitHub dispatch is not wired yet.
+option. The bound Apps Script sidebar can select either provider using `BACKEND_TYPE`;
+see [its setup guide](google_apps_script/README.md) for GitHub token configuration.
