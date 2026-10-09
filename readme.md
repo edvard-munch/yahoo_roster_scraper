@@ -132,6 +132,13 @@ handler. Run details remain in `_config` and existing scraper logs.
 The HTTP layer creates Google clients per request. Its default runtime adapter
 reuses existing Yahoo parsing helpers without executing CLI prompts. Keep the
 existing `uv run yahoo-roster-scraper` command for interactive local runs.
-Cloud Run packaging, Apps Script integration, and distributed run locking are
-separate steps. Avoid overlapping runs against the same spreadsheet in this
+Apps Script integration and distributed run locking are separate steps. Avoid overlapping runs against the same spreadsheet in this
 synchronous version; use a single worker/concurrency of one when deploying it.
+
+## Cloud Run packaging
+
+The HTTP service can be built with `docker build -t yahoo-roster-scraper:cloud-run .`.
+The container runs as a non-root user and requires `SCRAPER_API_SECRET` at startup;
+its launcher uses Cloud Run's `PORT` and one Uvicorn worker. Local CLI usage is
+unchanged. See [deployment instructions](deployment/README.md) for Secret Manager,
+service-account spreadsheet access, the Cloud Run template, and smoke tests.

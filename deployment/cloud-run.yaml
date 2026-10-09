@@ -1,0 +1,46 @@
+# Template: replace PROJECT_ID, REGION and IMAGE_TAG before deploying.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: yahoo-roster-scraper
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: '0'
+        autoscaling.knative.dev/maxScale: '1'
+        run.googleapis.com/cpu-throttling: 'true'
+        run.googleapis.com/startup-cpu-boost: 'true'
+    spec:
+      serviceAccountName: roster-scraper@PROJECT_ID.iam.gserviceaccount.com
+      containerConcurrency: 1
+      timeoutSeconds: 300
+      containers:
+        - image: REGION-docker.pkg.dev/PROJECT_ID/roster-scraper/service:IMAGE_TAG
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          env:
+            - name: SCRAPER_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: roster-scraper-api-secret
+                  key: '1'
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3

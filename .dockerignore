@@ -1,0 +1,14 @@
+# Only the files needed to build the service enter the Docker context.
+**
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!uv.lock
+!readme.md
+!src/
+!src/**
+**/__pycache__/
+**/*.pyc
+**/.env
+**/google_credentials.json
+**/google_token.pickle
