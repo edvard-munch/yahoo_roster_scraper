@@ -182,3 +182,11 @@ failure messages rather than raw Google errors or credential-bearing tracebacks.
 is safe without credentials and does not call Google/Yahoo. The Actions workflow,
 per-spreadsheet concurrency policy, and Apps Script GitHub dispatch are subsequent
 steps; this commit adds only the command they will invoke.
+
+## GitHub Actions hosting option
+
+[GitHub Actions setup](deployment/GITHUB_ACTIONS.md) describes the manually/API-
+triggered spreadsheet refresh workflow, Google keyless identity federation,
+environment variables, permissions, and per-spreadsheet concurrency handling.
+It uses the non-interactive Actions command; Cloud Run remains an independent
+option. Apps Script GitHub dispatch is not wired yet.

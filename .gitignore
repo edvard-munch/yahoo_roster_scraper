@@ -7,3 +7,6 @@ links.txt
 .env
 google_credentials.json
 google_token.pickle
+
+# Ephemeral Google Workload Identity Federation credentials from Actions.
+/gha-creds-*.json
