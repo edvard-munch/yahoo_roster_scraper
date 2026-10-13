@@ -26,10 +26,12 @@ function showScraperSidebar() {
 }
 
 function getSidebarState() {
-  const config = readConfig_(SpreadsheetApp.getActiveSpreadsheet());
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const config = readConfig_(spreadsheet);
   const state = {};
   DISPLAY_KEYS.forEach(key => { state[key] = config[key] || ''; });
-  state.timezone = config.timezone || 'UTC';
+  state.timezone_saved = Boolean(config.timezone);
+  state.timezone = config.timezone || spreadsheet.getSpreadsheetTimeZone() || 'UTC';
   const pending = getPendingGithubSubmission_(config);
   state.github_dispatch_pending = Boolean(pending);
   state.github_actions_url = pending ? pending.actionsUrl : '';
@@ -353,6 +355,7 @@ function statusMessage_(state) {
   return (state.github_dispatch_pending ? 'GitHub submission pending; check Actions.\n' : '')
     + 'Status: ' + (state.run_status || 'not run')
     + '\nTimezone: ' + (state.timezone || 'UTC')
+    + (state.timezone_saved === false ? ' (not saved)' : '')
     + '\nStarted: ' + (state.run_started_at || '-')
     + '\nLast success: ' + (state.last_run || '-')
     + '\nLast error: ' + (state.last_error || '-');

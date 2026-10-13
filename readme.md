@@ -206,7 +206,8 @@ When saving/running through the updated bound Apps Script, a missing/blank
 value is preserved, including on CLI updates. To change it later, edit the
 `timezone` row in the hidden `_config` tab; changing the spreadsheet setting does
 not overwrite an existing value automatically. The sidebar displays the saved
-zone alongside the raw offset-aware timestamps.
+zone alongside the raw offset-aware timestamps; if unset, it previews the
+spreadsheet timezone marked “not saved” until Save settings or Run is clicked.
 
 This preference affects run timestamps **only**, not NHL schedule windows or the
 schedule start-date override. Existing offset-less timestamps remain untouched;

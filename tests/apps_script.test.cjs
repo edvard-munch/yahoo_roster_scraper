@@ -400,3 +400,27 @@ test('saving preserves an explicitly configured timezone', () => {
   f.context.saveSettingsFromSidebar(settings);
   assert.equal(f.context.getSidebarState().timezone, 'America/New_York');
 });
+
+test('sidebar previews sheet timezone without writing a missing or blank config value', () => {
+  for (const rows of [[], [['timezone', '']]]) {
+    const f = fixture(rows);
+    const before = plain(f.rows());
+    const state = f.context.getSidebarState();
+    assert.equal(state.timezone, 'Europe/Moscow');
+    assert.equal(state.timezone_saved, false);
+    assert.deepEqual(f.rows(), before);
+    assert(f.context.statusMessage_(state).includes('Europe/Moscow (not saved)'));
+    f.context.saveSettingsFromSidebar(settings);
+    const saved = f.context.getSidebarState();
+    assert.equal(saved.timezone_saved, true);
+    assert(!f.context.statusMessage_(saved).includes('not saved'));
+  }
+});
+
+test('sidebar uses saved custom timezone rather than sheet timezone', () => {
+  const f = fixture([['timezone', 'America/New_York']]);
+  const state = f.context.getSidebarState();
+  assert.equal(state.timezone, 'America/New_York');
+  assert.equal(state.timezone_saved, true);
+  assert(!f.context.statusMessage_(state).includes('not saved'));
+});

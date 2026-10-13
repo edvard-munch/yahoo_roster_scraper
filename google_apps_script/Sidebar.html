@@ -64,6 +64,7 @@
         + (state.github_dispatch_pending ? '\nGitHub submission pending (not completed).' : '')
         + '\nStatus: ' + (state.run_status || 'not run')
         + '\nTimezone: ' + (state.timezone || 'UTC')
+        + (state.timezone_saved === false ? ' (not saved)' : '')
         + '\nStarted: ' + (state.run_started_at || '-')
         + '\nLast success: ' + (state.last_run || '-')
         + '\nLast error: ' + (state.last_error || '-');
