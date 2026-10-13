@@ -60,6 +60,7 @@ def find_league_spreadsheet(drive_service, league_id):
 
 def create_spreadsheet(sheets_service, drive_service, config):
     validate_league_id(config.league_id)
+    league_sheet_config.validate_timezone(config.timezone)
     response = sheets_service.create(
         body={
             "properties": {"title": get_spreadsheet_title(config)},
@@ -95,6 +96,10 @@ def resolve_league_spreadsheet(sheets_service, drive_service, config):
     stored_config = league_sheet_config.read_league_config(sheets_service, spreadsheet_id)
     if stored_config.league_id != config.league_id:
         raise ValueError(f"Spreadsheet {spreadsheet_id} has missing or mismatched league config")
+
+    # Keep the spreadsheet's timestamp preference when refreshed through the CLI.
+    league_sheet_config.validate_timezone(stored_config.timezone)
+    config.timezone = stored_config.timezone
 
     expected_title = get_spreadsheet_title(config)
     current_title = spreadsheet.get("properties", {}).get("title")

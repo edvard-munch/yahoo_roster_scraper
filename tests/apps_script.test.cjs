@@ -41,6 +41,7 @@ function fixture(rows = []) {
   };
   const spreadsheet = {
     getId: () => 'sheet-123',
+    getSpreadsheetTimeZone: () => 'Europe/Moscow',
     getSheetByName: () => present ? sheet : null,
     insertSheet: title => { events.push(['insert', title]); present = true; return sheet; },
     addEditor: email => events.push(['share', email]),
@@ -136,7 +137,7 @@ test('missing config tab can be created without touching stats tabs', () => {
   const f = fixture(); f.missing();
   f.context.saveSettingsFromSidebar(settings);
   assert(f.events.some(e => Array.isArray(e) && e[0] === 'insert' && e[1] === '_config'));
-  assert.equal(f.rows().length, 3);
+  assert.equal(f.rows().length, 4);
 });
 
 test('duplicate config keys are rejected rather than changing only one copy', () => {
@@ -383,4 +384,19 @@ test('pending marker cannot be cleared while Python is running', () => {
   f.properties.GITHUB_DISPATCH_PENDING = '{}';
   f.context.SpreadsheetApp.getUi().alert = () => 'YES';
   assert.throws(() => f.context.clearPendingGithubSubmission(), /marked as running/);
+});
+
+test('saving seeds timezone from spreadsheet settings when missing or blank', () => {
+  for (const rows of [[], [['timezone', '']]]) {
+    const f = fixture(rows);
+    f.context.saveSettingsFromSidebar(settings);
+    assert.equal(f.context.getSidebarState().timezone, 'Europe/Moscow');
+    assert.equal(f.rows().filter(row => row[0] === 'timezone').length, 1);
+  }
+});
+
+test('saving preserves an explicitly configured timezone', () => {
+  const f = fixture([['timezone', 'America/New_York']]);
+  f.context.saveSettingsFromSidebar(settings);
+  assert.equal(f.context.getSidebarState().timezone, 'America/New_York');
 });

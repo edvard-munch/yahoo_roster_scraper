@@ -45,6 +45,7 @@ FROZEN_HEADER_ROW_COUNT = 1
 
 class GoogleSheetsStatsSink:
     def __init__(self, service, spreadsheet_id, config):
+        league_sheet_config.validate_timezone(config.timezone)
         self.service = service
         self.spreadsheet_id = spreadsheet_id
         self.config = config
@@ -101,7 +102,9 @@ class GoogleSheetsStatsSink:
 
         self._apply_formatting(team_tabs)
         previous_last_run = self.config.last_run
-        self.config.last_run = league_sheet_config.build_last_run_timestamp()
+        self.config.last_run = league_sheet_config.build_last_run_timestamp(
+            timezone=self.config.timezone
+        )
         try:
             league_sheet_config.write_league_config(
                 self.service,

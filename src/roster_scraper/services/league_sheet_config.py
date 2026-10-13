@@ -1,15 +1,18 @@
 import datetime
 from dataclasses import dataclass, field
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 CONFIG_SHEET_TITLE = "_config"
-LAST_RUN_FORMAT = "%Y-%m-%dT%H:%M:%S"
+DEFAULT_TIMEZONE = "UTC"
+TIMESTAMP_PRECISION = "seconds"
 
 LEAGUE_ID_KEY = "league_id"
 LEAGUE_NAME_KEY = "league_name"
 SEASON_KEY = "season"
 START_DATE_OVERRIDE_KEY = "start_date_override"
 LAST_RUN_KEY = "last_run"
+TIMEZONE_KEY = "timezone"
 RUN_STATUS_KEY = "run_status"
 RUN_STARTED_AT_KEY = "run_started_at"
 LAST_ERROR_KEY = "last_error"
@@ -26,6 +29,7 @@ class LeagueConfig:
     season: str = ""
     start_date_override: str | None = None
     last_run: str | None = None
+    timezone: str = DEFAULT_TIMEZONE
     run_status: str | None = None
     run_started_at: str | None = None
     last_error: str | None = None
@@ -39,6 +43,7 @@ def config_to_rows(config):
         [SEASON_KEY, config.season],
         [START_DATE_OVERRIDE_KEY, config.start_date_override or ""],
         [LAST_RUN_KEY, config.last_run or ""],
+        [TIMEZONE_KEY, config.timezone],
         [RUN_STATUS_KEY, config.run_status or ""],
         [RUN_STARTED_AT_KEY, config.run_started_at or ""],
         [LAST_ERROR_KEY, config.last_error or ""],
@@ -69,6 +74,8 @@ def config_from_rows(rows):
             config.start_date_override = value or None
         elif key == LAST_RUN_KEY:
             config.last_run = value or None
+        elif key == TIMEZONE_KEY:
+            config.timezone = value or DEFAULT_TIMEZONE
         elif key == RUN_STATUS_KEY:
             config.run_status = value or None
         elif key == RUN_STARTED_AT_KEY:
@@ -81,9 +88,21 @@ def config_from_rows(rows):
     return config
 
 
-def build_last_run_timestamp(now=None):
-    now = now or datetime.datetime.now()
-    return now.strftime(LAST_RUN_FORMAT)
+def validate_timezone(timezone):
+    try:
+        return ZoneInfo(timezone)
+    except (ZoneInfoNotFoundError, ValueError, TypeError) as error:
+        raise ValueError(
+            "_config timezone must be a valid IANA name, e.g. Europe/Moscow"
+        ) from error
+
+
+def build_last_run_timestamp(now=None, timezone=DEFAULT_TIMEZONE):
+    zone = validate_timezone(timezone)
+    now = now if now is not None else datetime.datetime.now(datetime.timezone.utc)
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("Timestamp source must include timezone information")
+    return now.astimezone(zone).isoformat(timespec=TIMESTAMP_PRECISION)
 
 
 def read_league_config(service, spreadsheet_id):

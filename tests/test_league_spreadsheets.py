@@ -205,3 +205,27 @@ def test_resolve_renames_existing_spreadsheet_when_league_name_changes():
         body={"name": "FNH 26-27 Stats"},
         fields="id",
     )
+
+
+def test_cli_reuse_preserves_spreadsheet_timezone():
+    sheets, drive = make_services()
+    drive.list.return_value.execute.return_value = {"files": [{"id": "stats-123"}]}
+    sheets.values.return_value.get.return_value.execute.return_value = {
+        "values": [["league_id", "12922"], ["timezone", "Europe/Moscow"]]
+    }
+    config = league_sheet_config.LeagueConfig(league_id="12922", league_name="FNH 26-27")
+
+    assert league_spreadsheets.resolve_league_spreadsheet(sheets, drive, config) == "stats-123"
+    assert config.timezone == "Europe/Moscow"
+    sheets.values.return_value.update.assert_not_called()
+
+
+def test_create_rejects_invalid_timezone_before_google_calls():
+    sheets, drive = make_services()
+    config = league_sheet_config.LeagueConfig(league_id="12922", timezone="Invalid/Zone")
+
+    with pytest.raises(ValueError, match="valid IANA name"):
+        league_spreadsheets.create_spreadsheet(sheets, drive, config)
+
+    sheets.create.assert_not_called()
+    drive.update.assert_not_called()

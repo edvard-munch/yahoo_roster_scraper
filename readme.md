@@ -191,3 +191,25 @@ environment variables, permissions, and per-spreadsheet concurrency handling.
 It uses the non-interactive Actions command; Cloud Run remains an independent
 option. The bound Apps Script sidebar can select either provider using `BACKEND_TYPE`;
 see [its setup guide](google_apps_script/README.md) for GitHub token configuration.
+
+## Spreadsheet run timestamp timezone
+
+Set `_config.timezone` to an IANA name, for example `Europe/Moscow` or
+`America/New_York`. `run_started_at` and `last_run` are written as local ISO
+timestamps with an explicit UTC offset, e.g. `2026-10-13T14:33:49+03:00`.
+The runner starts from an aware UTC instant and converts it to that timezone,
+independently of the PC, GitHub runner or Cloud Run server timezone.
+
+Missing/blank settings default to `UTC`; invalid names fail before scraping.
+When saving/running through the updated bound Apps Script, a missing/blank
+`timezone` is seeded from **File → Settings → Time zone**. An existing custom
+value is preserved, including on CLI updates. To change it later, edit the
+`timezone` row in the hidden `_config` tab; changing the spreadsheet setting does
+not overwrite an existing value automatically. The sidebar displays the saved
+zone alongside the raw offset-aware timestamps.
+
+This preference affects run timestamps **only**, not NHL schedule windows or the
+schedule start-date override. Existing offset-less timestamps remain untouched;
+new runs use the new format. `tzdata` supplies timezone rules in containers where
+an operating-system timezone database may not be available. Copy the updated
+`Code.gs`/`Sidebar.html` into existing bound projects to get automatic seeding.

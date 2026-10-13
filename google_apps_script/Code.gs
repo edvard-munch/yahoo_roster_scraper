@@ -9,7 +9,7 @@ const DEFAULT_GITHUB_REF = 'master';
 const GITHUB_PENDING_KEY = 'GITHUB_DISPATCH_PENDING';
 const SEASONS = ['preseason', 'just_started', 'in_season'];
 const EDITABLE_KEYS = ['league_id', 'season', 'start_date_override'];
-const DISPLAY_KEYS = [...EDITABLE_KEYS, 'league_name', 'run_status',
+const DISPLAY_KEYS = [...EDITABLE_KEYS, 'league_name', 'timezone', 'run_status',
   'run_started_at', 'last_run', 'last_error'];
 
 function onOpen() {
@@ -29,6 +29,7 @@ function getSidebarState() {
   const config = readConfig_(SpreadsheetApp.getActiveSpreadsheet());
   const state = {};
   DISPLAY_KEYS.forEach(key => { state[key] = config[key] || ''; });
+  state.timezone = config.timezone || 'UTC';
   const pending = getPendingGithubSubmission_(config);
   state.github_dispatch_pending = Boolean(pending);
   state.github_actions_url = pending ? pending.actionsUrl : '';
@@ -182,7 +183,17 @@ function writeSettings_(spreadsheet, settings) {
         .setValues([[key, settings[key]]]);
     }
   });
-  // Preserve league_name, timestamps, run status, errors and unknown rows.
+  const timezoneIndex = existingRows.findIndex(row => String(row[0]).trim() === 'timezone');
+  if (timezoneIndex < 0 || !String(existingRows[timezoneIndex][1] || '').trim()) {
+    const timezone = spreadsheet.getSpreadsheetTimeZone() || 'UTC';
+    if (timezoneIndex >= 0) {
+      sheet.getRange(timezoneIndex + 1, 2).setNumberFormat('@').setValue(timezone);
+    } else {
+      sheet.getRange(sheet.getLastRow() + 1, 1, 1, 2).setNumberFormat('@')
+        .setValues([['timezone', timezone]]);
+    }
+  }
+  // Preserve existing custom timezone, league_name, timestamps, status and unknown rows.
   sheet.hideSheet();
 }
 
@@ -341,6 +352,7 @@ function parseBackendResponse_(response) {
 function statusMessage_(state) {
   return (state.github_dispatch_pending ? 'GitHub submission pending; check Actions.\n' : '')
     + 'Status: ' + (state.run_status || 'not run')
+    + '\nTimezone: ' + (state.timezone || 'UTC')
     + '\nStarted: ' + (state.run_started_at || '-')
     + '\nLast success: ' + (state.last_run || '-')
     + '\nLast error: ' + (state.last_error || '-');

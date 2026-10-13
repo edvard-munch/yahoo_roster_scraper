@@ -107,3 +107,27 @@ def test_load_sheet_run_config_propagates_sheet_read_error():
 
     with pytest.raises(RuntimeError, match="Google Sheets unavailable"):
         sheet_run_config.load_sheet_run_config(service, "sheet-123", "1")
+
+
+@pytest.mark.parametrize("timezone", ["Invalid/Zone", "../../../etc/passwd", "+03:00", "", None])
+def test_sheet_config_rejects_invalid_timezone(timezone):
+    config = league_sheet_config.LeagueConfig(
+        league_id="12922", season="in_season", timezone=timezone
+    )
+
+    with pytest.raises(sheet_run_config.SheetConfigError, match="valid IANA name"):
+        sheet_run_config.build_sheet_run_config(config, "1")
+
+
+def test_sheet_timezone_does_not_change_schedule_date_override():
+    config = league_sheet_config.LeagueConfig(
+        league_id="12922",
+        season="in_season",
+        timezone="America/New_York",
+        start_date_override="2026-10-09",
+    )
+
+    result = sheet_run_config.build_sheet_run_config(config, "1")
+
+    assert result.league_config.timezone == "America/New_York"
+    assert result.scrape_config.start_date_override == datetime.date(2026, 10, 9)

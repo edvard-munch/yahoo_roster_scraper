@@ -179,3 +179,14 @@ repository. GitHub may replace an older pending run with a newer dispatch, so
 repeated submission is not a queue you should rely on. Cancellation/timeouts can
 still leave stale state. This version neither polls GitHub nor automatically
 retries jobs. No new Apps Script OAuth scopes are needed for GitHub dispatch.
+
+## `_config` timestamp timezone
+
+Save settings or Run once with the updated script to seed a missing/blank
+`timezone` row from the spreadsheet's **File → Settings → Time zone**. Existing
+custom values are not replaced. You can edit `_config.timezone` directly, e.g.
+`Europe/Moscow`; the Python backend validates the IANA name before scraping.
+The sidebar/status dialog displays this field, and the backend writes both run
+timestamps with an offset (`2026-10-13T14:33:49+03:00`). This does not change the
+NHL schedule date range. Update the Python backend/workflow code as well as these
+bound script files before testing the new behavior.

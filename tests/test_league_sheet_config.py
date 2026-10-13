@@ -115,6 +115,45 @@ def test_write_league_config_writes_rows_to_config_sheet():
 
 
 def test_build_last_run_timestamp_formats_datetime():
-    now = datetime.datetime(2026, 10, 2, 17, 25, 0)
+    now = datetime.datetime(2026, 10, 2, 17, 25, 0, tzinfo=datetime.timezone.utc)
 
-    assert league_sheet_config.build_last_run_timestamp(now) == "2026-10-02T17:25:00"
+    assert league_sheet_config.build_last_run_timestamp(now) == "2026-10-02T17:25:00+00:00"
+
+
+def test_config_timezone_round_trip_and_legacy_default():
+    config = league_sheet_config.LeagueConfig(league_id="12922", timezone="Europe/Moscow")
+
+    assert (
+        league_sheet_config.config_from_rows(league_sheet_config.config_to_rows(config)) == config
+    )
+    legacy = league_sheet_config.config_from_rows([["last_run", "2026-10-02T17:25:00"]])
+    assert legacy.timezone == "UTC"
+    assert legacy.last_run == "2026-10-02T17:25:00"
+    assert league_sheet_config.config_from_rows([["timezone", ""]]).timezone == "UTC"
+
+
+def test_timestamp_uses_config_timezone_and_explicit_offset():
+    now = datetime.datetime(2026, 10, 13, 11, 33, 49, tzinfo=datetime.timezone.utc)
+
+    assert league_sheet_config.build_last_run_timestamp(now, "Europe/Moscow") == (
+        "2026-10-13T14:33:49+03:00"
+    )
+
+
+def test_timestamp_handles_daylight_saving_changes():
+    winter = datetime.datetime(2026, 1, 15, 12, tzinfo=datetime.timezone.utc)
+    summer = datetime.datetime(2026, 7, 15, 12, tzinfo=datetime.timezone.utc)
+
+    assert league_sheet_config.build_last_run_timestamp(winter, "America/New_York") == (
+        "2026-01-15T07:00:00-05:00"
+    )
+    assert league_sheet_config.build_last_run_timestamp(summer, "America/New_York") == (
+        "2026-07-15T08:00:00-04:00"
+    )
+
+
+def test_timestamp_rejects_naive_source():
+    import pytest
+
+    with pytest.raises(ValueError, match="Timestamp source must include timezone"):
+        league_sheet_config.build_last_run_timestamp(datetime.datetime(2026, 10, 13, 11))

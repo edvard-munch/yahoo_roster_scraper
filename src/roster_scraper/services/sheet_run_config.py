@@ -40,6 +40,10 @@ def parse_start_date_override(value):
 
 def build_sheet_run_config(config, full_stats_format):
     validate_league_id(config.league_id)
+    try:
+        league_sheet_config.validate_timezone(config.timezone)
+    except ValueError as error:
+        raise SheetConfigError(str(error)) from error
 
     try:
         season_mode = application.SEASON_MODES_BY_NAME[config.season]

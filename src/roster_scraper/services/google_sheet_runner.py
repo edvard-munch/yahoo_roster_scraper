@@ -39,7 +39,7 @@ def run_google_sheet_scrape(
         scrape_dependencies.xlsx_format,
     )
     config = sheet_config.league_config
-    config.run_started_at = league_sheet_config.build_last_run_timestamp()
+    config.run_started_at = league_sheet_config.build_last_run_timestamp(timezone=config.timezone)
     write_run_status(
         sheets_service,
         spreadsheet_id,

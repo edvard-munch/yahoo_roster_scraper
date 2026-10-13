@@ -137,7 +137,7 @@ def test_google_sheets_sink_writes_teams_matchups_formatting_and_last_run(monkey
     monkeypatch.setattr(
         stats_sinks.league_sheet_config,
         "build_last_run_timestamp",
-        lambda: "2026-10-02T17:25:00",
+        lambda timezone="UTC": "2026-10-02T17:25:00",
     )
 
     sink = stats_sinks.GoogleSheetsStatsSink(service, "sheet-123", config)
@@ -202,7 +202,7 @@ def test_google_sheets_sink_empty_close_skips_values_and_is_idempotent(monkeypat
     monkeypatch.setattr(
         stats_sinks.league_sheet_config,
         "build_last_run_timestamp",
-        lambda: "2026-10-02T17:25:00",
+        lambda timezone="UTC": "2026-10-02T17:25:00",
     )
 
     sink = stats_sinks.GoogleSheetsStatsSink(service, "sheet-123", config)
@@ -279,7 +279,7 @@ def test_google_sheets_sink_restores_last_run_when_config_write_fails(monkeypatc
     monkeypatch.setattr(
         stats_sinks.league_sheet_config,
         "build_last_run_timestamp",
-        lambda: "new-run",
+        lambda timezone="UTC": "new-run",
     )
     monkeypatch.setattr(
         stats_sinks.league_sheet_config,
@@ -293,3 +293,32 @@ def test_google_sheets_sink_restores_last_run_when_config_write_fails(monkeypatc
 
     assert config.last_run == "previous-run"
     assert sink.closed is False
+
+
+def test_google_sink_uses_config_timezone_for_last_run(monkeypatch):
+    import datetime
+
+    service = MagicMock()
+    config = stats_sinks.league_sheet_config.LeagueConfig(
+        league_id="12922", timezone="Europe/Moscow"
+    )
+    monkeypatch.setattr(stats_sinks.google_sheet_tabs, "sync_stats_tabs", lambda *args: [])
+    monkeypatch.setattr(
+        stats_sinks.google_sheet_tabs,
+        "get_sheet_properties",
+        lambda *args: [{"sheetId": 1, "title": "MATCHUPS"}],
+    )
+    original_timestamp = stats_sinks.league_sheet_config.build_last_run_timestamp
+    fixed_now = datetime.datetime(2026, 10, 13, 11, 33, 49, tzinfo=datetime.timezone.utc)
+    monkeypatch.setattr(
+        stats_sinks.league_sheet_config,
+        "build_last_run_timestamp",
+        lambda timezone: original_timestamp(fixed_now, timezone),
+    )
+
+    stats_sinks.GoogleSheetsStatsSink(service, "sheet-123", config).close()
+
+    assert config.last_run == "2026-10-13T14:33:49+03:00"
+    rows = service.values.return_value.update.call_args.kwargs["body"]["values"]
+    assert ["last_run", "2026-10-13T14:33:49+03:00"] in rows
+    assert ["timezone", "Europe/Moscow"] in rows

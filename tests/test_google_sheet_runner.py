@@ -34,7 +34,7 @@ def capture_status_writes(monkeypatch):
     monkeypatch.setattr(
         google_sheet_runner.league_sheet_config,
         "build_last_run_timestamp",
-        lambda: "2026-10-08T12:00:00",
+        lambda timezone="UTC": "2026-10-08T12:00:00",
     )
     monkeypatch.setattr(
         google_sheet_runner.league_sheet_config,
@@ -263,7 +263,7 @@ def test_failed_status_write_does_not_replace_original_scrape_error(monkeypatch)
     monkeypatch.setattr(
         google_sheet_runner.league_sheet_config,
         "build_last_run_timestamp",
-        lambda: "2026-10-08T12:00:00",
+        lambda timezone="UTC": "2026-10-08T12:00:00",
     )
 
     def write_config(service, spreadsheet_id, config):
@@ -308,3 +308,30 @@ def test_format_run_error_is_bounded():
 
     assert message.startswith("RuntimeError: ")
     assert len(message) == google_sheet_runner.MAX_ERROR_MESSAGE_LENGTH
+
+
+def test_runner_uses_config_timezone_for_start_timestamp(monkeypatch):
+    sheet_config = make_sheet_config()
+    sheet_config.league_config.timezone = "Europe/Moscow"
+    capture_status_writes(monkeypatch)
+    timezone_calls = []
+    monkeypatch.setattr(
+        google_sheet_runner.league_sheet_config,
+        "build_last_run_timestamp",
+        lambda timezone: timezone_calls.append(timezone) or "2026-10-13T14:33:49+03:00",
+    )
+    monkeypatch.setattr(
+        google_sheet_runner.sheet_run_config, "load_sheet_run_config", lambda *args: sheet_config
+    )
+    monkeypatch.setattr(
+        google_sheet_runner.application, "prepare_league", lambda *args, **kwargs: object()
+    )
+    monkeypatch.setattr(google_sheet_runner.stats_sinks, "GoogleSheetsStatsSink", SinkSpy)
+    monkeypatch.setattr(google_sheet_runner.application, "run_scrape", lambda *args: None)
+
+    google_sheet_runner.run_google_sheet_scrape(
+        object(), "sheet-123", SimpleNamespace(xlsx_format="1"), object()
+    )
+
+    assert timezone_calls == ["Europe/Moscow"]
+    assert sheet_config.league_config.run_started_at == "2026-10-13T14:33:49+03:00"
