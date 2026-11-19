@@ -38,7 +38,7 @@ dependencies = [
     "simpleeval==1.0.5",
     "soupsieve==4.0.0",
     "starlette==1.10.0",
-    "tomli==2.0.1",
+    "tomli==2.2.1",
     "tzdata==2026.5",
     "uritemplate==4.1.1",
     "urllib3==2.8.0",
@@ -52,6 +52,9 @@ yahoo-roster-scraper = "roster_scraper.cli:main"
 yahoo-roster-scraper-actions = "roster_scraper.actions:main"
 
 [dependency-groups]
+audit = [
+    "pip-audit==2.10.1",
+]
 dev = [
     "httpx==0.28.1",
     "pre-commit>=4.3.0,<5.0.0",

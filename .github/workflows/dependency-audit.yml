@@ -1,0 +1,47 @@
+name: Dependency security
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    # Mondays at 09:17 Europe/Moscow (06:17 UTC).
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    name: Audit locked Python dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: '0.10.10'
+          enable-cache: false
+
+      - name: Export locked production and development dependencies
+        run: >-
+          uv export --locked --all-groups --no-emit-project
+          --output-file "$RUNNER_TEMP/audit-requirements.txt"
+
+      - name: Audit dependencies for known vulnerabilities
+        # Export includes the full dependency tree; avoid resolving or installing it again.
+        run: >-
+          uv run --locked --only-group audit pip-audit
+          --requirement "$RUNNER_TEMP/audit-requirements.txt"
+          --require-hashes --disable-pip --strict --progress-spinner off

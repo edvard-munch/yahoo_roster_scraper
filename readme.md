@@ -2,6 +2,29 @@ League has to be publicly viewable to scrape data.
 
 ## UV workflow
 
+Dependency updates are proposed weekly by Dependabot for Python packages (including
+transitive and development dependencies) and GitHub Actions. Updates require review;
+they are not merged automatically.
+
+The **Dependency security** workflow audits all locked Python dependency groups on
+pull requests, pushes to `master`, and weekly. It also supports manual runs. It fails
+on known vulnerabilities, including those without a fix, or if the audit cannot
+complete. It does not use Google credentials or run the scraper.
+
+To make a failed audit block merging, require **Audit locked Python dependencies**
+in the repository's branch protection or ruleset settings after its first run.
+Scheduled runs use the default branch and GitHub's Actions notification settings.
+
+Run the same audit locally (the generated file is temporary and is not committed):
+
+```bash
+uv export --locked --all-groups --no-emit-project --output-file /tmp/roster-audit-requirements.txt
+uv run --locked --only-group audit pip-audit --requirement /tmp/roster-audit-requirements.txt --require-hashes --disable-pip --strict --progress-spinner off
+```
+
+The `audit` group keeps the auditor version in `uv.lock` and allows Dependabot to
+propose updates to the auditor itself.
+
 Install dependencies from lockfile:
 
 ```bash
